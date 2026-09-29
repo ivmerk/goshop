@@ -1,3 +1,5 @@
+module github.com/ivmerk/goshop/order
+
 go 1.27
 
 require (
