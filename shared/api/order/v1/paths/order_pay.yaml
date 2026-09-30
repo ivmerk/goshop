@@ -1,12 +1,12 @@
-parameters:
-  - $ref: '../params/order_uuid.yaml'
-
-get:
-  summary: Get order by ID
-  description: Retrieve an order by its unique identifier.
-  operationId: getOrderById
-  tags:
-    - Orders
+post:
+  summary: Pay for an order
+  description: Initiate payment for a specific order.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/pay_order_request.yaml'
   responses:
     '200':
       description: Successful response with the order details.

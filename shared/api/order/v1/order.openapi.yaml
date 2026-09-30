@@ -16,3 +16,5 @@ paths:
     $ref: './paths/orders.yaml'
   /api/v1/orders/{orderId}:
     $ref: './paths/order_by_uuid.yaml'
+  /api/v1/orders/{order_uuid}/status:
+    $ref: './paths/order_pay.yaml'
