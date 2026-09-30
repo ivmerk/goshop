@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -15,9 +13,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/render"
 
-	"github.com/ivmerk/goshop/order/pkg/models"
+	"github.com/ivmerk/goshop/order/internal/models"
+
+	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
 )
 
 const (
@@ -28,9 +27,28 @@ const (
 	shutdownTimeout   = 10 * time.Second
 )
 
+type OrderHandler struct {
+	storage *models.OrderStorage
+}
+
+func NewOrderHandler(storage *models.OrderStorage) *OrderHandler {
+	return &OrderHandler{
+		storage: storage,
+	}
+}
+
 func main() {
 	// Создаем хранилище для данных о погоде
-	storage := models.NewWeatherStorage()
+	storage := models.NewOrderStorage()
+
+	// Создаем обработчик API погоды
+	orderHandler := NewOrderHandler(storage)
+
+	// Создаем OpenAPI сервер
+	orderServer, err := orderV1.NewServer(orderHandler)
+	if err != nil {
+		log.Fatalf("ошибка создания сервера OpenAPI: %v", err)
+	}
 
 	// Инициализируем роутер Chi
 	r := chi.NewRouter()
@@ -39,13 +57,10 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
-	r.Use(render.SetContentType(render.ContentTypeJSON))
+	r.Use(customMiddleware.RequestLogger)
 
-	// Определяем маршруты
-	r.Route("/api/v1/weather", func(r chi.Router) {
-		r.Get("/{city}", getWeatherHandler(storage))
-		r.Put("/{city}", updateWeatherHandler(storage))
-	})
+	// Монтируем обработчики OpenAPI
+	r.Mount("/", orderServer)
 
 	// Запускаем HTTP-сервер
 	server := &http.Server{
@@ -60,7 +75,7 @@ func main() {
 	// Запускаем сервер в отдельной горутине
 	go func() {
 		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", httpPort)
-		err := server.ListenAndServe()
+		err = server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("❌ Ошибка запуска сервера: %v\n", err)
 		}
@@ -77,59 +92,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	err := server.Shutdown(ctx)
+	err = server.Shutdown(ctx)
 	if err != nil {
 		log.Printf("❌ Ошибка при остановке сервера: %v\n", err)
 	}
 
 	log.Println("✅ Сервер остановлен")
-}
-
-// getWeatherHandler обрабатывает запросы на получение информации о погоде для города
-func getWeatherHandler(storage *models.WeatherStorage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		city := chi.URLParam(r, urlParamCity)
-		if city == "" {
-			http.Error(w, "City parameter is required", http.StatusBadRequest)
-			return
-		}
-
-		weather := storage.GetWeather(city)
-		if weather == nil {
-			http.Error(w, fmt.Sprintf("Weather for city '%s' not found", city), http.StatusNotFound)
-			return
-		}
-
-		render.JSON(w, r, weather)
-	}
-}
-
-// updateWeatherHandler обрабатывает запросы на обновление информации о погоде для города
-func updateWeatherHandler(storage *models.WeatherStorage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		city := chi.URLParam(r, urlParamCity)
-		if city == "" {
-			http.Error(w, "City parameter is required", http.StatusBadRequest)
-			return
-		}
-
-		// Декодируем данные из тела запроса
-		var weatherUpdate models.Weather
-		if err := json.NewDecoder(r.Body).Decode(&weatherUpdate); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		// Устанавливаем имя города из URL-параметра
-		weatherUpdate.City = city
-
-		// Устанавливаем время обновления
-		weatherUpdate.UpdatedAt = time.Now()
-
-		// Обновляем информацию о погоде
-		storage.UpdateWeather(&weatherUpdate)
-
-		// Возвращаем обновленные данные
-		render.JSON(w, r, weatherUpdate)
-	}
 }
