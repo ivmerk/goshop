@@ -1,0 +1,15 @@
+type: object
+required:
+  - user_uuid
+  - parts_uuids
+properties:
+  user_uuid:
+    type: string
+    format: uuid
+    description: Identifier of the user placing the order.
+  parts_uuids:
+    type: array
+    description: List of item UUIDs in the order.
+    items:
+      type: string
+      format: uuid

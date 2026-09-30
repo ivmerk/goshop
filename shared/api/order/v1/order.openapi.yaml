@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: Order API
+  version: 1.0.0
+  description: API for managing orders in the system.
+x-ogen:
+  target: ./shared/pkg/openapi/order/v1
+  package: order_v1
+
+tags:
+  - name: Orders
+    description: Operations related to orders.
+
+paths:
+  /api/v1/orders:
+    $ref: './paths/orders.yaml'
+  /api/v1/orders/{orderId}:
+    $ref: './paths/order_by_uuid.yaml'

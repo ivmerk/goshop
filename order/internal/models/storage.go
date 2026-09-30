@@ -16,24 +16,24 @@ func NewOrderStorage() *OrderStorage {
 	}
 }
 
-func (s *OrderStorage) GetOrder(id string) (*Order, bool) {
+func (s *OrderStorage) GetOrder(uuid string) (*Order, bool) {
 	s.mu.RLock()         // Блокировка для чтения, чтобы предотвратить запись в карту orders во время чтения.
 	defer s.mu.RUnlock() // Отложенная разблокировка после завершения функции.
 
-	order, exists := s.orders[id] // Получение заказа по его идентификатору (ID) из карты orders.
-	return order, exists          // Возвращаем заказ и флаг существования заказа в карте.
+	order, exists := s.orders[uuid] // Получение заказа по его уникальным идентификатору (UUID) из карты orders.
+	return order, exists            // Возвращаем заказ и флаг существования заказа в карте.
 }
 
 func (s *OrderStorage) AddOrder(order *Order) {
 	s.mu.Lock()         // Блокировка для записи, чтобы предотвратить одновременное чтение или запись в карту orders.
 	defer s.mu.Unlock() // Отложенная разблокировка после завершения функции.
 
-	s.orders[order.ID] = order // Добавление нового заказа в карту orders по его идентификатору (ID).
+	s.orders[order.UUID] = order // Добавление нового заказа в карту orders по его уникальным идентификатору (UUID).
 }
 
 func (s *OrderStorage) UpdateOrder(order *Order) {
 	s.mu.Lock()         // Блокировка для записи, чтобы предотвратить одновременное чтение или запись в карту orders.
 	defer s.mu.Unlock() // Отложенная разблокировка после завершения функции.
 
-	s.orders[order.ID] = order // Обновление или добавление заказа в карту orders по его идентификатору (ID).
+	s.orders[order.UUID] = order // Обновление или добавление заказа в карту orders по его уникальным идентификатору (UUID).
 }
