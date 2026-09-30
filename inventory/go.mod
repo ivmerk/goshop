@@ -1,4 +1,4 @@
-module github.com/ivmerk/goshop/order
+module github.com/ivmerk/goshop/inventory
 
 go 1.27
 

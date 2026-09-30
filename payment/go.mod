@@ -1,4 +1,4 @@
-module github.com/ivmerk/goshop/order
+module github.com/ivmerk/goshop/payment
 
 go 1.27
 
