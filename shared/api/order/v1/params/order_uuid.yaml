@@ -1,7 +1,7 @@
-name: orderId
+name: order_uuid
 in: path
 required: true
 schema:
   type: string
-  minLength: 1
+  format: uuid
   example: "123e4567-e89b-12d3-a456-426614174000"

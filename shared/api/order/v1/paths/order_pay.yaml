@@ -1,6 +1,10 @@
+parameters:
+  - $ref: '../params/order_uuid.yaml'
+  
 post:
   summary: Pay for an order
   description: Initiate payment for a specific order.
+  operationId: payOrder
   requestBody:
     required: true
     content:
@@ -9,11 +13,11 @@ post:
           $ref: '../components/pay_order_request.yaml'
   responses:
     '200':
-      description: Successful response with the order details.
+      description: Successful response with the payment details.
       content:
         application/json:
           schema:
-            $ref: '../components/get_order_response.yaml'
+            $ref: '../components/pay_order_response.yaml'
     '404':
       description: Order not found.
       content:
