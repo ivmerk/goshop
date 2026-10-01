@@ -1,0 +1,336 @@
+openapi: 3.0.3
+info:
+  title: Order API
+  version: 1.0.0
+  description: API for managing orders in the system.
+tags:
+  - name: Orders
+    description: Operations related to orders.
+paths:
+  /api/v1/orders:
+    post:
+      summary: Create a new order
+      description: Create a new order in the system.
+      operationId: createOrder
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/create_order_request'
+      responses:
+        '200':
+          description: Order created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/create_order_response'
+        '400':
+          description: Bad request due to invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/bad_request_error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_server_error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/generic_error'
+  /api/v1/orders/{order_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/order_uuid'
+    get:
+      summary: Get order by ID
+      description: Retrieve an order by its unique identifier.
+      operationId: getOrderById
+      tags:
+        - Orders
+      responses:
+        '200':
+          description: Successful response with the order details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/get_order_response'
+        '400':
+          description: Bad request due to invalid order ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/bad_request_error'
+        '404':
+          description: Order not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/not_found_error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_server_error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/generic_error'
+  /api/v1/orders/{order_uuid}/pay:
+    parameters:
+      - $ref: '#/components/parameters/order_uuid'
+    post:
+      summary: Pay for an order
+      description: Initiate payment for a specific order.
+      operationId: payOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/pay_order_request'
+      responses:
+        '200':
+          description: Successful response with the payment details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/pay_order_response'
+        '400':
+          description: Bad request due to invalid order ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/bad_request_error'
+        '404':
+          description: Order not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/not_found_error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_server_error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/generic_error'
+  /api/v1/orders/{order_uuid}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/order_uuid'
+    post:
+      summary: Cancel an order
+      description: Cancel a specific order by its unique identifier.
+      operationId: cancelOrder
+      tags:
+        - Orders
+      responses:
+        '204':
+          description: Order canceled successfully.
+        '404':
+          description: Order not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/not_found_error'
+        '409':
+          description: Conflict error, order paid and cannot be canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/conflict_error'
+        default:
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/generic_error'
+components:
+  schemas:
+    create_order_request:
+      type: object
+      required:
+        - user_uuid
+        - parts_uuids
+      properties:
+        user_uuid:
+          type: string
+          format: uuid
+          description: Identifier of the user placing the order.
+          example: 123e4567-e89b-12d3-a456-426614174000
+        parts_uuids:
+          type: array
+          description: List of item UUIDs in the order.
+          items:
+            type: string
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
+    generic_error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ошибки
+        message:
+          type: string
+          description: Описание ошибки
+    create_order_response:
+      type: object
+      properties:
+        order_uuid:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        total_amount:
+          type: number
+          format: float
+          example: 100
+    bad_request_error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ошибки
+          example: 400
+        message:
+          type: string
+          description: Описание ошибки
+          example: 'Bad Request: Invalid parameter format'
+    internal_server_error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ошибки
+          example: 500
+        message:
+          type: string
+          description: Описание ошибки
+          example: Internal server error occurred
+    payment_method:
+      type: string
+      description: Способ оплаты.
+      enum:
+        - UNKNOWN
+        - CARD
+        - SBP
+        - CREDIT_CARD
+        - INVESTOR_MONEY
+      example: CARD
+    get_order_response:
+      type: object
+      required:
+        - order_uuid
+        - user_uuid
+        - parts_uuids
+        - total_price
+        - transaction_uuid
+        - payment_method
+        - status
+      properties:
+        order_uuid:
+          type: string
+          description: Unique identifier for the order.
+          example: 123e4567-e89b-12d3-a456-426614174000
+        user_uuid:
+          type: string
+          description: UUID of the user who placed the order.
+          example: 123e4567-e89b-12d3-a456-426614174000
+        parts_uuids:
+          type: array
+          description: List of UUIDs for the parts in the order.
+          items:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+        total_price:
+          type: number
+          format: float
+          description: Total price for the order.
+          example: 100
+        transaction_uuid:
+          type: string
+          description: Unique identifier for the payment transaction.
+          example: 123e4567-e89b-12d3-a456-426614174000
+        payment_method:
+          $ref: '#/components/schemas/payment_method'
+        status:
+          type: string
+          description: Current status of the order (e.g., pending, completed, canceled).
+          example: pending
+    not_found_error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ошибки
+          example: 404
+        message:
+          type: string
+          description: Описание ошибки
+          example: Weather for city 'Unknown' not found
+    pay_order_request:
+      type: object
+      required:
+        - payment_method
+      properties:
+        payment_method:
+          $ref: '#/components/schemas/payment_method'
+    pay_order_response:
+      type: object
+      required:
+        - transaction_uuid
+      properties:
+        transaction_uuid:
+          type: string
+          format: uuid
+          description: UUID транзакции оплаты.
+          example: 123e4567-e89b-12d3-a456-426614174000
+    conflict_error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP-код ошибки
+          example: 409
+        message:
+          type: string
+          description: Описание ошибки
+          example: Order is already paid and cannot be canceled
+  parameters:
+    order_uuid:
+      name: order_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: 123e4567-e89b-12d3-a456-426614174000
+x-ogen:
+  target: ./shared/pkg/openapi/order/v1
+  package: order_v1
