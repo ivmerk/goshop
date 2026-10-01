@@ -1,14 +1,14 @@
 type: object
 required:
   - user_uuid
-  - parts_uuids
+  - part_uuids
 properties:
   user_uuid:
     type: string
     format: uuid
     description: Identifier of the user placing the order.
     example: "123e4567-e89b-12d3-a456-426614174000"
-  parts_uuids:
+  part_uuids:
     type: array
     description: List of item UUIDs in the order.
     items:

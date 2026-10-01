@@ -17,6 +17,7 @@ import (
 	"github.com/ivmerk/goshop/order/internal/models"
 
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
+	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
 const (
@@ -38,10 +39,8 @@ func NewOrderHandler(storage *models.OrderStorage) *OrderHandler {
 }
 
 func main() {
-	// Создаем хранилище для данных о погоде
 	storage := models.NewOrderStorage()
 
-	// Создаем обработчик API погоды
 	orderHandler := NewOrderHandler(storage)
 
 	// Создаем OpenAPI сервер
