@@ -18,16 +18,21 @@ import (
 
 	"github.com/ivmerk/goshop/order/internal/models"
 
+	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
+	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
+	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	httpPort     = "8080"
-	urlParamCity = "city"
-	// Таймауты для HTTP-сервера
+	httpPort          = "8080"
 	readHeaderTimeout = 5 * time.Second
 	shutdownTimeout   = 10 * time.Second
+	inventoryAddr     = "localhost:50051"
+	paymentAddr       = "localhost:50052"
 )
 
 type OrderHandler struct {
@@ -206,8 +211,23 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 func main() {
 	storage := models.NewOrderStorage()
 
-	orderHandler := NewOrderHandler(storage, nil, nil)
+	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("ошибка подключения к inventory: %v", err)
+	}
+	defer inventoryConn.Close()
 
+	paymentConn, err := grpc.NewClient(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("ошибка подключения к payment: %v", err)
+	}
+	defer paymentConn.Close()
+
+	orderHandler := NewOrderHandler(
+		storage,
+		grpcClient.NewInventoryClient(inventoryV1.NewInventoryServiceClient(inventoryConn)),
+		grpcClient.NewPaymentClient(paymentV1.NewPaymentServiceClient(paymentConn)),
+	)
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
 	if err != nil {

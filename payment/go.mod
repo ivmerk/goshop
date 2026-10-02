@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/ivmerk/goshop/order v0.0.0-20261002114426-0f22a75c71a3
 	github.com/ivmerk/goshop/shared v0.0.0
 	google.golang.org/grpc v1.84.0
 )
