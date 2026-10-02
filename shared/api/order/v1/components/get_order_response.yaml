@@ -26,7 +26,7 @@ properties:
       example: "123e4567-e89b-12d3-a456-426614174000"
   total_price:
     type: number
-    format: float
+    format: double
     description: Total price for the order.
     example: 100.00
   transaction_uuid:
