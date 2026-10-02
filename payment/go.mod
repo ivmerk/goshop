@@ -3,9 +3,17 @@ module github.com/ivmerk/goshop/payment
 go 1.27
 
 require (
-	github.com/brianvoe/gofakeit/v7 v7.17.1
-	github.com/go-chi/chi/v5 v5.3.2
-	github.com/go-chi/render v1.0.3
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )
 
-require github.com/ajg/form v1.5.1
+require (
+	github.com/google/uuid v1.6.0
+	github.com/ivmerk/goshop/shared v0.0.0
+	google.golang.org/grpc v1.84.0
+)
+
+replace github.com/ivmerk/goshop/shared => ../shared
