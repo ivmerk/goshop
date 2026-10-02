@@ -45,6 +45,7 @@ func (s *inventoryService) GetPart(_ context.Context, req *inventoryV1.GetPartRe
 		return nil, status.Errorf(codes.NotFound, "part with UUID %s not found", req.GetUuid())
 	}
 
+	log.Printf("GetPart: part with UUID %s found", req.GetUuid())
 	return &inventoryV1.GetPartResponse{Part: part}, nil
 }
 
