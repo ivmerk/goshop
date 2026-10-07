@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/ivmerk/goshop/order/internal/models"
+	"github.com/ivmerk/goshop/order/internal/model"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
@@ -44,12 +44,12 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 	}
 
 	orderUUID := uuid.New()
-	h.storage.AddOrder(&models.Order{
+	h.storage.AddOrder(&model.Order{
 		UUID:   orderUUID.String(),
 		User:   req.UserUUID.String(),
 		Parts:  partUUIDs,
 		Total:  total,
-		Status: models.OrderStatusPendingPayment,
+		Status: model.OrderStatusPendingPayment,
 	})
 
 	return &orderV1.CreateOrderResponse{

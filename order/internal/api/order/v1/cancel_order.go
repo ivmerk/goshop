@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ivmerk/goshop/order/internal/models"
+	"github.com/ivmerk/goshop/order/internal/model"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
@@ -18,13 +18,13 @@ func (h *OrderHandler) CancelOrder(_ context.Context, params orderV1.CancelOrder
 	}
 
 	switch order.Status {
-	case models.OrderStatusPaid:
+	case model.OrderStatusPaid:
 		return &orderV1.ConflictError{
 			Code:    http.StatusConflict,
 			Message: "order is already paid and cannot be canceled",
 		}, nil
-	case models.OrderStatusPendingPayment:
-		order.Status = models.OrderStatusCancelled
+	case model.OrderStatusPendingPayment:
+		order.Status = model.OrderStatusCancelled
 		h.storage.UpdateOrder(order)
 	}
 

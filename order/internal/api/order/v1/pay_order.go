@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/ivmerk/goshop/order/internal/models"
+	"github.com/ivmerk/goshop/order/internal/model"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
@@ -19,13 +19,13 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 		return &orderV1.BadRequestError{Code: http.StatusBadRequest, Message: "unknown payment method"}, nil
 	}
 
-	method := models.PaymentMethod(req.PaymentMethod)
+	method := model.PaymentMethod(req.PaymentMethod)
 	transactionUUID, err := h.payment.PayOrder(ctx, order.UUID, order.User, method)
 	if err != nil {
 		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "payment failed"}, nil
 	}
 
-	order.Status = models.OrderStatusPaid
+	order.Status = model.OrderStatusPaid
 	order.Transaction = transactionUUID
 	order.Payment = method
 	h.storage.UpdateOrder(order)

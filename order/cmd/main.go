@@ -14,7 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/ivmerk/goshop/order/internal/models"
+	"github.com/ivmerk/goshop/order/internal/model"
 
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
@@ -35,7 +35,7 @@ const (
 )
 
 func main() {
-	storage := models.NewOrderStorage()
+	storage := model.NewOrderStorage()
 
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
