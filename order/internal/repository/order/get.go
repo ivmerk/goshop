@@ -7,7 +7,7 @@ import (
 	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
 )
 
-func (r *repository) GetOrder(_ context.Context, uuid string) (*model.Order, error) {
+func (r *repository) Get(_ context.Context, uuid string) (*model.Order, error) {
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()

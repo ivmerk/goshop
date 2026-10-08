@@ -8,7 +8,7 @@ import (
 	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
 )
 
-func (r *repository) CreateOrder(ctx context.Context, order *model.Order) (string, error) {
+func (r *repository) Create(ctx context.Context, order *model.Order) (string, error) {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()

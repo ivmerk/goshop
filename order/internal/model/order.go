@@ -28,3 +28,8 @@ type Order struct {
 	Status      OrderStatus   `json:"status"`      // Статус заказа (например, "PENDING_PAYMENT")
 	Payment     PaymentMethod `json:"payment"`     // Метод оплаты заказа (например, "CARD", "SBP", "CREDIT_CARD")
 }
+
+type OrderUpdateInfo struct {
+	Transaction *string     `json:"transaction,omitempty"` // Новый идентификатор транзакции оплаты заказа
+	Status      OrderStatus `json:"status"`                // Новый статус заказа (например, "PENDING_PAYMENT")
+}
