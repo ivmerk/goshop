@@ -8,11 +8,11 @@ import (
 
 func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
 	return &repositoryModel.Order{
-		UUID:        order.UUID,
+		UUID:        stringVal(order.UUID),
 		User:        order.User,
 		Parts:       slices.Clone(order.Parts),
 		Total:       order.Total,
-		Transaction: stringPtr(order.Transaction),
+		Transaction: clonePtr(order.Transaction),
 		Status:      repositoryModel.OrderStatus(order.Status),
 		Payment:     repositoryModel.PaymentMethod(order.Payment),
 	}
@@ -20,11 +20,11 @@ func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
 
 func FromRepositoryOrder(order *repositoryModel.Order) *model.Order {
 	return &model.Order{
-		UUID:        order.UUID,
+		UUID:        stringPtr(order.UUID),
 		User:        order.User,
 		Parts:       slices.Clone(order.Parts),
 		Total:       order.Total,
-		Transaction: stringVal(order.Transaction),
+		Transaction: clonePtr(order.Transaction),
 		Status:      model.OrderStatus(order.Status),
 		Payment:     model.PaymentMethod(order.Payment),
 	}
@@ -40,4 +40,12 @@ func stringVal(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func clonePtr(s *string) *string {
+	if s == nil {
+		return nil
+	}
+	v := *s
+	return &v
 }

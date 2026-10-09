@@ -28,12 +28,12 @@ func (s *OrderStorage) AddOrder(order *Order) {
 	s.mu.Lock()         // Блокировка для записи, чтобы предотвратить одновременное чтение или запись в карту orders.
 	defer s.mu.Unlock() // Отложенная разблокировка после завершения функции.
 
-	s.orders[order.UUID] = order // Добавление нового заказа в карту orders по его уникальным идентификатору (UUID).
+	s.orders[*order.UUID] = order // Добавление нового заказа в карту orders по его уникальным идентификатору (UUID).
 }
 
 func (s *OrderStorage) UpdateOrder(order *Order) {
 	s.mu.Lock()         // Блокировка для записи, чтобы предотвратить одновременное чтение или запись в карту orders.
 	defer s.mu.Unlock() // Отложенная разблокировка после завершения функции.
 
-	s.orders[order.UUID] = order // Обновление или добавление заказа в карту orders по его уникальным идентификатору (UUID).
+	s.orders[*order.UUID] = order // Обновление или добавление заказа в карту orders по его уникальным идентификатору (UUID).
 }
