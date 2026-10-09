@@ -1,33 +1,22 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	paymentAPI "github.com/ivmerk/goshop/payment/internal/api/payment/v1"
+	paymentSvc "github.com/ivmerk/goshop/payment/internal/service/payment"
 
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
 const grpcPort = "50052"
-
-type paymentService struct {
-	paymentV1.UnimplementedPaymentServiceServer
-}
-
-func (s *paymentService) PayOrder(_ context.Context, req *paymentV1.PayOrderRequest) (*paymentV1.PayOrderResponse, error) {
-	transactionUUID := uuid.NewString()
-
-	log.Printf("Оплата прошла успешно, transaction_uuid: %s", transactionUUID)
-
-	return &paymentV1.PayOrderResponse{TransactionUuid: transactionUUID}, nil
-}
 
 func main() {
 	lis, err := net.Listen("tcp", ":"+grpcPort)
@@ -35,8 +24,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	svc := paymentSvc.NewService()
+	api := paymentAPI.NewPaymentAPI(svc)
 	server := grpc.NewServer()
-	paymentV1.RegisterPaymentServiceServer(server, &paymentService{})
+	paymentV1.RegisterPaymentServiceServer(server, api)
 
 	// Позволяет grpcurl видеть список сервисов без .proto-файла.
 	reflection.Register(server)
