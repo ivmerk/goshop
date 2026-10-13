@@ -50,7 +50,7 @@ func ToRepositoryManufacturer(manufacturer *model.Manufacturer) *repoModel.Manuf
 	}
 }
 
-func ToModelPart(part *repoModel.Part) *model.Part {
+func FromRepositoryPart(part *repoModel.Part) *model.Part {
 	if part == nil {
 		return nil
 	}
