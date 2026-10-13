@@ -33,8 +33,16 @@ type Part struct {
 	Price         float64
 	Category      Category
 	Tags          []string
+	Metadata      map[string]*Value
 	CreatedAt     time.Time
 	UpdatedAt     *time.Time
 	Dimensions    *Dimensions
 	Manufacturer  *Manufacturer
+}
+
+type Value struct {
+	String *string
+	Int64  *int64
+	Double *float64
+	Bool   *bool
 }

@@ -1,6 +1,8 @@
 package converter
 
 import (
+	"slices"
+
 	"github.com/ivmerk/goshop/inventory/internal/model"
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
 )
@@ -16,13 +18,15 @@ func ToRepositoryPart(part *model.Part) *repoModel.Part {
 		StockQuantity: part.StockQuantity,
 		Price:         part.Price,
 		Category:      repoModel.Category(part.Category),
-		Tags:          part.Tags,
+		Tags:          slices.Clone(part.Tags),
+		Metadata:      ToRepositoryMetadata(part.Metadata),
 		CreatedAt:     part.CreatedAt,
-		UpdatedAt:     part.UpdatedAt,
+		UpdatedAt:     clonePtr(part.UpdatedAt),
 		Dimensions:    ToRepositoryDimensions(part.Dimensions),
 		Manufacturer:  ToRepositoryManufacturer(part.Manufacturer),
 	}
 }
+
 func ToRepositoryDimensions(dimensions *model.Dimensions) *repoModel.Dimensions {
 	if dimensions == nil {
 		return nil
@@ -57,9 +61,10 @@ func ToModelPart(part *repoModel.Part) *model.Part {
 		StockQuantity: part.StockQuantity,
 		Price:         part.Price,
 		Category:      model.Category(part.Category),
-		Tags:          part.Tags,
+		Tags:          slices.Clone(part.Tags),
+		Metadata:      ToModelMetadata(part.Metadata),
 		CreatedAt:     part.CreatedAt,
-		UpdatedAt:     part.UpdatedAt,
+		UpdatedAt:     clonePtr(part.UpdatedAt),
 		Dimensions:    ToModelDimensions(part.Dimensions),
 		Manufacturer:  ToModelManufacturer(part.Manufacturer),
 	}
@@ -86,4 +91,64 @@ func ToModelManufacturer(manufacturer *repoModel.Manufacturer) *model.Manufactur
 		Country: manufacturer.Country,
 		Website: manufacturer.Website,
 	}
+}
+
+func clonePtr[T any](s *T) *T {
+	if s == nil {
+		return nil
+	}
+	v := *s
+	return &v
+}
+
+func ToRepositoryValue(v *model.Value) *repoModel.Value {
+	if v == nil {
+		return nil
+	}
+	return &repoModel.Value{
+		String: clonePtr(v.String),
+		Int64:  clonePtr(v.Int64),
+		Double: clonePtr(v.Double),
+		Bool:   clonePtr(v.Bool),
+	}
+}
+
+func ToModelValue(v *repoModel.Value) *model.Value {
+	if v == nil {
+		return nil
+	}
+	return &model.Value{
+		String: clonePtr(v.String),
+		Int64:  clonePtr(v.Int64),
+		Double: clonePtr(v.Double),
+		Bool:   clonePtr(v.Bool),
+	}
+}
+
+func ToRepositoryMetadata(m map[string]*model.Value) map[string]*repoModel.Value {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]*repoModel.Value, len(m))
+	for k, v := range m {
+		if v == nil {
+			continue
+		}
+		out[k] = ToRepositoryValue(v)
+	}
+	return out
+}
+
+func ToModelMetadata(m map[string]*repoModel.Value) map[string]*model.Value {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]*model.Value, len(m))
+	for k, v := range m {
+		if v == nil {
+			continue
+		}
+		out[k] = ToModelValue(v)
+	}
+	return out
 }
