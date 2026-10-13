@@ -9,14 +9,11 @@ import (
 	"sort"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
@@ -32,7 +29,6 @@ type inventoryService struct {
 
 func newInventoryService() *inventoryService {
 	s := &inventoryService{parts: make(map[string]*inventoryV1.Part)}
-	s.seed()
 	return s
 }
 
@@ -120,64 +116,6 @@ func intersects(a, b []string) bool {
 		}
 	}
 	return false
-}
-
-func (s *inventoryService) seed() {
-	now := timestamppb.New(time.Now())
-
-	add := func(p *inventoryV1.Part) {
-		p.Uuid = uuid.NewString()
-		p.CreatedAt = now
-		p.UpdatedAt = now
-		s.parts[p.Uuid] = p
-	}
-
-	add(&inventoryV1.Part{
-		Name:          "Main booster",
-		Description:   "Основной маршевый двигатель",
-		Price:         12500.50,
-		StockQuantity: 5,
-		Category:      inventoryV1.Category_ENGINE,
-		Dimensions:    &inventoryV1.Dimensions{Length: 300, Width: 120, Height: 120, Weight: 850},
-		Manufacturer:  &inventoryV1.Manufacturer{Name: "Rocket GmbH", Country: "Germany", Website: "https://rocket.example"},
-		Tags:          []string{"engine", "main"},
-		Metadata: map[string]*inventoryV1.Value{
-			"series": {Kind: &inventoryV1.Value_StringValue{StringValue: "MB-1"}},
-			"thrust": {Kind: &inventoryV1.Value_DoubleValue{DoubleValue: 1200.5}},
-			"tested": {Kind: &inventoryV1.Value_BoolValue{BoolValue: true}},
-			"batch":  {Kind: &inventoryV1.Value_Int64Value{Int64Value: 42}},
-		},
-	})
-	add(&inventoryV1.Part{
-		Name:          "Fuel tank",
-		Description:   "Топливный бак на 5000 литров",
-		Price:         3200,
-		StockQuantity: 12,
-		Category:      inventoryV1.Category_FUEL,
-		Dimensions:    &inventoryV1.Dimensions{Length: 200, Width: 150, Height: 150, Weight: 400},
-		Manufacturer:  &inventoryV1.Manufacturer{Name: "Tank Corp", Country: "USA", Website: "https://tank.example"},
-		Tags:          []string{"fuel", "tank"},
-	})
-	add(&inventoryV1.Part{
-		Name:          "Panoramic porthole",
-		Description:   "Панорамный иллюминатор",
-		Price:         980.99,
-		StockQuantity: 30,
-		Category:      inventoryV1.Category_PORTHOLE,
-		Dimensions:    &inventoryV1.Dimensions{Length: 80, Width: 80, Height: 10, Weight: 25},
-		Manufacturer:  &inventoryV1.Manufacturer{Name: "Glass Ltd", Country: "Japan", Website: "https://glass.example"},
-		Tags:          []string{"porthole", "glass"},
-	})
-	add(&inventoryV1.Part{
-		Name:          "Delta wing",
-		Description:   "Дельтовидное крыло",
-		Price:         7400,
-		StockQuantity: 8,
-		Category:      inventoryV1.Category_WING,
-		Dimensions:    &inventoryV1.Dimensions{Length: 600, Width: 250, Height: 30, Weight: 300},
-		Manufacturer:  &inventoryV1.Manufacturer{Name: "Rocket GmbH", Country: "Germany", Website: "https://rocket.example"},
-		Tags:          []string{"wing", "aero"},
-	})
 }
 
 func main() {

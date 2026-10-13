@@ -14,7 +14,7 @@ func (r *repository) List(ctx context.Context, filter model.PartsFilter) ([]*mod
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var parts []*model.Part
+	parts := make([]*model.Part, 0, len(r.parts))
 	for _, part := range r.parts {
 		if !matches(part, filter) {
 			continue
