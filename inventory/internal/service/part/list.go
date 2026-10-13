@@ -7,6 +7,9 @@ import (
 )
 
 func (s *service) List(ctx context.Context, filter model.PartsFilter) ([]*model.Part, error) {
-	// Implementation for listing parts with filter
-	return nil, nil
+	list, err := s.repository.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

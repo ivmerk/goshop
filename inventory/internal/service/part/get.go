@@ -7,6 +7,9 @@ import (
 )
 
 func (s *service) Get(ctx context.Context, uuid string) (*model.Part, error) {
-	// Implementation for getting a part by UUID
-	return nil, nil
+	part, err := s.repository.Get(ctx, uuid)
+	if err != nil {
+		return nil, err
+	}
+	return part, nil
 }
