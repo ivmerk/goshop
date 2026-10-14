@@ -15,6 +15,7 @@ func (r *repository) Create(ctx context.Context, order *model.Order) (string, er
 
 	repoOrder := repoConverter.ToRepositoryOrder(order)
 	repoOrder.CreatedAt = time.Now()
+	r.orders[repoOrder.UUID] = repoOrder
 
 	return repoOrder.UUID, nil
 

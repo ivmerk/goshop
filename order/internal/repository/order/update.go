@@ -19,9 +19,11 @@ func (r *repository) Update(_ context.Context, uuid string, updatedOrder *model.
 	}
 
 	if updatedOrder.Transaction != nil {
-		existingOrder.Transaction = updatedOrder.Transaction
+		existingOrder.Transaction = lo.ToPtr(*updatedOrder.Transaction)
 	}
-	existingOrder.Status = repoModel.OrderStatus(updatedOrder.Status)
+	if updatedOrder.Status != "" {
+		existingOrder.Status = repoModel.OrderStatus(updatedOrder.Status)
+	}
 	existingOrder.UpdatedAt = lo.ToPtr(time.Now())
 
 	return existingOrder.UUID, nil

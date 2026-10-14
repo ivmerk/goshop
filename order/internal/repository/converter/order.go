@@ -8,7 +8,7 @@ import (
 
 func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
 	return &repositoryModel.Order{
-		UUID:        stringVal(order.UUID),
+		UUID:        order.UUID,
 		User:        order.User,
 		Parts:       slices.Clone(order.Parts),
 		Total:       order.Total,
@@ -20,7 +20,7 @@ func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
 
 func FromRepositoryOrder(order *repositoryModel.Order) *model.Order {
 	return &model.Order{
-		UUID:        stringPtr(order.UUID),
+		UUID:        order.UUID,
 		User:        order.User,
 		Parts:       slices.Clone(order.Parts),
 		Total:       order.Total,
@@ -28,18 +28,6 @@ func FromRepositoryOrder(order *repositoryModel.Order) *model.Order {
 		Status:      model.OrderStatus(order.Status),
 		Payment:     model.PaymentMethod(order.Payment),
 	}
-}
-func stringPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-func stringVal(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 func clonePtr(s *string) *string {

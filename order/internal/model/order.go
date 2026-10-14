@@ -20,7 +20,7 @@ const (
 
 // Order представляет собой структуру данных для хранения информации о заказе.
 type Order struct {
-	UUID        *string       `json:"uuid"`        // Уникальный идентификатор заказа
+	UUID        string        `json:"uuid"`        // Уникальный идентификатор заказа
 	User        string        `json:"user"`        // Имя клиента, сделавшего заказ
 	Parts       []string      `json:"parts"`       // Список товаров в заказе
 	Total       float64       `json:"total"`       // Общая стоимость заказа
