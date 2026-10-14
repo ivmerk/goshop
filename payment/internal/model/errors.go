@@ -3,6 +3,7 @@ package model
 import "errors"
 
 var (
-	ErrOrderNotFound        = errors.New("order not found")
-	ErrPaymentMethodUnknown = errors.New("unknown payment method")
+	ErrInvalidOrderUUID         = errors.New("invalid order UUID")
+	ErrInvalidUserUUID          = errors.New("invalid user UUID")
+	ErrUnsupportedPaymentMethod = errors.New("unsupported payment method")
 )
