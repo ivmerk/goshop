@@ -1,9 +1,10 @@
 package converter
 
 import (
+	"slices"
+
 	"github.com/ivmerk/goshop/order/internal/model"
 	repositoryModel "github.com/ivmerk/goshop/order/internal/repository/model"
-	"golang.org/x/exp/slices"
 )
 
 func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
