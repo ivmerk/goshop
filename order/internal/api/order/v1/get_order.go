@@ -40,8 +40,8 @@ func (h *OrderHandler) GetOrderById(_ context.Context, params orderV1.GetOrderBy
 	}
 
 	// Эти поля есть только у оплаченного заказа.
-	if order.Transaction != "" {
-		txID, err := uuid.Parse(order.Transaction)
+	if order.Transaction != nil {
+		txID, err := uuid.Parse(*order.Transaction)
 		if err != nil {
 			return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "invalid transaction uuid"}, nil
 		}

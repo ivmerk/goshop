@@ -8,11 +8,11 @@ import (
 	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
 )
 
-func (s *service) Cancel(ctx context.Context, uuid string) (string, error) {
+func (s *service) Cancel(ctx context.Context, uuid string) error {
 
 	order := &model.Order{UUID: uuid}
 	repoOrder := repoConverter.ToRepositoryOrder(order)
-	repoOrder.Transaction = time.Now().Format("20060102150405") // Пример генерации идентификатора транзакции на основе текущего времени
+	*repoOrder.Transaction = time.Now().Format("20060102150405") // Пример генерации идентификатора транзакции на основе текущего времени
 
-	return repoOrder.Transaction, nil
+	return nil
 }

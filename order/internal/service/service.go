@@ -7,8 +7,8 @@ import (
 )
 
 type OrderService interface {
-	Create(ctx context.Context, order *model.Order) (string, error)
+	Create(ctx context.Context, userUUID string, partUUIDs []string) (*model.Order, error)
 	Get(ctx context.Context, uuid string) (*model.Order, error)
-	Pay(ctx context.Context, uuid string, transactionID string) (string, error)
-	Cancel(ctx context.Context, uuid string) (string, error)
+	Pay(ctx context.Context, uuid string, method model.PaymentMethod) (string, error)
+	Cancel(ctx context.Context, uuid string) error
 }

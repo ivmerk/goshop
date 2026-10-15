@@ -30,6 +30,7 @@ type Order struct {
 }
 
 type OrderUpdateInfo struct {
-	Transaction *string     `json:"transaction,omitempty"` // Новый идентификатор транзакции оплаты заказа
-	Status      OrderStatus `json:"status"`                // Новый статус заказа (например, "PENDING_PAYMENT")
+	Transaction *string       `json:"transaction,omitempty"` // Новый идентификатор транзакции оплаты заказа
+	Status      OrderStatus   `json:"status"`                // Новый статус заказа (например, "PENDING_PAYMENT")
+	Payment     PaymentMethod `json:"payment"`
 }

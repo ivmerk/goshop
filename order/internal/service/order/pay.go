@@ -4,16 +4,28 @@ import (
 	"context"
 
 	"github.com/ivmerk/goshop/order/internal/model"
-	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
 )
 
-func (s *service) Pay(ctx context.Context, uuid string, transactionID string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *service) Pay(ctx context.Context, uuid string, method model.PaymentMethod) (string, error) {
+	if method == model.PaymentMethodUnknown {
+		return "", model.ErrInvalidPaymentMethod
+	}
+	order, err := s.orderRepository.Get(ctx, uuid)
+	if err != nil {
+		return "", err
+	}
+	if order.Status != model.OrderStatusPendingPayment {
+		return "", model.ErrOrderNotPayable
+	}
 
-	order := &model.Order{UUID: uuid}
-	repoOrder := repoConverter.ToRepositoryOrder(order)
-	repoOrder.Transaction = transactionID
+	txID, err := s.paymentClient.PayOrder(ctx, order.UUID, order.User, method)
+	if err != nil {
+		return "", err
+	}
 
-	return repoOrder.Transaction, nil
+	_, err = s.orderRepository.Update(ctx, uuid, &model.OrderUpdateInfo{
+		Transaction: &txID, Status: model.OrderStatusPaid, Payment: method,
+	})
+	return txID, err
+
 }
