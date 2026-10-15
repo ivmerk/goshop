@@ -7,5 +7,5 @@ import (
 )
 
 func (s *service) Get(ctx context.Context, uuid string) (*model.Order, error) {
-	return &model.Order{UUID: uuid}, nil
+	return s.orderRepository.Get(ctx, uuid)
 }

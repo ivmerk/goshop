@@ -1,15 +1,11 @@
 package v1
 
-import (
-	"github.com/ivmerk/goshop/order/internal/model"
-)
+import "github.com/ivmerk/goshop/order/internal/service"
 
 type OrderHandler struct {
-	storage   *model.OrderStorage
-	payment   PaymentClient
-	inventory InventoryClient
+	orderService service.OrderService
 }
 
-func NewOrderHandler(storage *model.OrderStorage, inventory InventoryClient, payment PaymentClient) *OrderHandler {
-	return &OrderHandler{storage: storage, inventory: inventory, payment: payment}
+func NewOrderHandler(orderService service.OrderService) *OrderHandler {
+	return &OrderHandler{orderService: orderService}
 }

@@ -2,19 +2,21 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/ivmerk/goshop/order/internal/model"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
-func (h *OrderHandler) GetOrderById(_ context.Context, params orderV1.GetOrderByIdParams) (orderV1.GetOrderByIdRes, error) {
-	order, ok := h.storage.GetOrder(params.OrderUUID.String())
-	if !ok {
-		return &orderV1.NotFoundError{
-			Code:    http.StatusNotFound,
-			Message: "order not found",
-		}, nil
+func (h *OrderHandler) GetOrderById(ctx context.Context, params orderV1.GetOrderByIdParams) (orderV1.GetOrderByIdRes, error) {
+	order, err := h.orderService.Get(ctx, params.OrderUUID.String())
+	if err != nil {
+		if errors.Is(err, model.ErrOrderNotFound) {
+			return &orderV1.NotFoundError{Code: http.StatusNotFound, Message: "order not found"}, nil
+		}
+		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "failed to get order"}, nil
 	}
 
 	userUUID, err := uuid.Parse(order.User)

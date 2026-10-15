@@ -10,5 +10,5 @@ var (
 	ErrPartNotFound         = errors.New("parts not found")
 	ErrInvalidPaymentMethod = errors.New("wrong payment method")
 	ErrOrderAlreadyPaid     = errors.New("order already paid")
-	ErrOrderNotPayable      = errors.New("")
+	ErrOrderNotPayable      = errors.New("order is not payable")
 )

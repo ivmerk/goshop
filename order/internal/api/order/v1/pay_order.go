@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -10,29 +11,22 @@ import (
 )
 
 func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderRequest, params orderV1.PayOrderParams) (orderV1.PayOrderRes, error) {
-	order, ok := h.storage.GetOrder(params.OrderUUID.String())
-	if !ok {
-		return &orderV1.NotFoundError{Code: http.StatusNotFound, Message: "order not found"}, nil
-	}
-
-	if req.PaymentMethod == orderV1.PaymentMethodUNKNOWN {
-		return &orderV1.BadRequestError{Code: http.StatusBadRequest, Message: "unknown payment method"}, nil
-	}
-
-	method := model.PaymentMethod(req.PaymentMethod)
-	transactionUUID, err := h.payment.PayOrder(ctx, order.UUID, order.User, method)
+	txID, err := h.orderService.Pay(ctx, params.OrderUUID.String(), model.PaymentMethod(req.PaymentMethod))
 	if err != nil {
-		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "payment failed"}, nil
+		switch {
+		case errors.Is(err, model.ErrOrderNotFound):
+			return &orderV1.NotFoundError{Code: http.StatusNotFound, Message: "order not found"}, nil
+		case errors.Is(err, model.ErrInvalidPaymentMethod), errors.Is(err, model.ErrOrderNotPayable):
+			return &orderV1.BadRequestError{Code: http.StatusBadRequest, Message: err.Error()}, nil
+		default:
+			return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "payment failed"}, nil
+		}
 	}
 
-	order.Status = model.OrderStatusPaid
-	order.Transaction = transactionUUID
-	order.Payment = method
-	h.storage.UpdateOrder(order)
-
-	txID, err := uuid.Parse(transactionUUID)
+	transactionUUID, err := uuid.Parse(txID)
 	if err != nil {
 		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "invalid transaction id"}, nil
 	}
-	return &orderV1.PayOrderResponse{TransactionUUID: txID}, nil
+	return &orderV1.PayOrderResponse{TransactionUUID: transactionUUID}, nil
+
 }

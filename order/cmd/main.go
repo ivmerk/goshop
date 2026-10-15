@@ -14,11 +14,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/ivmerk/goshop/order/internal/model"
-
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
+	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
+	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
@@ -35,7 +35,6 @@ const (
 )
 
 func main() {
-	storage := model.NewOrderStorage()
 
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -48,13 +47,15 @@ func main() {
 		log.Fatalf("ошибка подключения к payment: %v", err)
 	}
 	defer paymentConn.Close()
+	orderRepository := orderRepo.NewOrderRepository()
 
-	orderHandler := orderAPI.NewOrderHandler(
+	inventoryClient := grpcClient.NewInventoryClient(inventoryV1.NewInventoryServiceClient(inventoryConn))
+	paymentClient := grpcClient.NewPaymentClient(paymentV1.NewPaymentServiceClient(paymentConn))
 
-		storage,
-		grpcClient.NewInventoryClient(inventoryV1.NewInventoryServiceClient(inventoryConn)),
-		grpcClient.NewPaymentClient(paymentV1.NewPaymentServiceClient(paymentConn)),
-	)
+	orderService := orderSvc.NewService(orderRepository, inventoryClient, paymentClient)
+
+	orderHandler := orderAPI.NewOrderHandler(orderService)
+
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
 	if err != nil {
