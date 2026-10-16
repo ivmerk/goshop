@@ -1,0 +1,25 @@
+with-expecter: false
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: mocks
+filename: "mock_{{.InterfaceNameSnake}}.go"
+mockname: "{{.InterfaceName}}"
+packages:
+  github.com/ivmerk/goshop/inventory/internal/repository:
+    interfaces:
+      PartRepository:
+  github.com/ivmerk/goshop/inventory/internal/service:
+    interfaces:
+      PartService:
+  github.com/ivmerk/goshop/order/internal/repository:
+    interfaces:
+      OrderRepository:
+  github.com/ivmerk/goshop/order/internal/service:
+    interfaces:
+      OrderService:
+  github.com/ivmerk/goshop/order/internal/client/grpc:
+    interfaces:
+      InventoryClient:
+      PaymentClient:
+  github.com/ivmerk/goshop/payment/internal/service:
+    interfaces:
+      PaymentService:

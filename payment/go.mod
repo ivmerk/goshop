@@ -3,6 +3,7 @@ module github.com/ivmerk/goshop/payment
 go 1.27
 
 require (
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
@@ -12,8 +13,8 @@ require (
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/ivmerk/goshop/order v0.0.0-20261002114426-0f22a75c71a3
 	github.com/ivmerk/goshop/shared v0.0.0
+	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.84.0
 )
 
