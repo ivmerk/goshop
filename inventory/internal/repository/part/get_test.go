@@ -16,9 +16,9 @@ func TestGet(t *testing.T) {
 		name     string
 		wantErr  error
 	}{{nameTest: "finding_details", uuid: "p1", name: "Engine"},
-		{nameTest: "part_not_foung", uuid: "asd", name: "Engine", wantErr: model.ErrPartNotFound}}
+		{nameTest: "part_not_found", uuid: "asd", name: "Engine", wantErr: model.ErrPartNotFound}}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.nameTest, func(t *testing.T) {
 			part, err := rep.Get(context.Background(), tc.uuid)
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
