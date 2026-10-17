@@ -21,11 +21,14 @@ func TestList(t *testing.T) {
 		wantErr               error
 	}{
 		{nameTest: "empty_filter", partsUUIDs: []string{"p1", "p2", "p3"}},
+		{nameTest: "empty_uuids", uuid: []string{"p1", "p3"}, partsUUIDs: []string{"p1", "p3"}},
+		{nameTest: "filter_by_name", name: []string{"Tank"}, partsUUIDs: []string{"p2"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.nameTest, func(t *testing.T) {
 			var filter model.PartsFilter
 			filter.UUIDs = tc.uuid
+			filter.Names = tc.name
 
 			parts, err := rep.List(context.Background(), filter)
 			if tc.wantErr != nil {
@@ -38,7 +41,7 @@ func TestList(t *testing.T) {
 			for _, part := range parts {
 				partsUUIDs = append(partsUUIDs, part.UUID)
 			}
-			require.Equal(t, partsUUIDs, tc.partsUUIDs)
+			require.Equal(t, tc.partsUUIDs, partsUUIDs)
 		})
 	}
 }

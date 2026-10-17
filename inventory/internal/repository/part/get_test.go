@@ -26,8 +26,8 @@ func TestGet(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, part.Name, tc.name)
-			require.Equal(t, part.UUID, tc.uuid)
+			require.Equal(t, tc.name, part.Name)
+			require.Equal(t, tc.uuid, part.UUID)
 		})
 	}
 }
