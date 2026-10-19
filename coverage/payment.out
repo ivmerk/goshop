@@ -1,0 +1,12 @@
+mode: atomic
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:13.2,14.16 2 10
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:15.3,16.1 1 1
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:18.2,19.16 2 9
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:20.3,21.1 1 1
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:23.2,23.48 1 8
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:24.3,25.1 1 2
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:26.2,27.27 2 6
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:31.2,31.23 1 8
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:33.3,33.14 1 6
+github.com/ivmerk/goshop/payment/internal/service/payment/pay.go:35.3,35.15 1 2
+github.com/ivmerk/goshop/payment/internal/service/payment/service.go:12.2,13.1 1 2
