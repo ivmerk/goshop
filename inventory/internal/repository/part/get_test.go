@@ -15,8 +15,10 @@ func TestGet(t *testing.T) {
 		uuid     string
 		name     string
 		wantErr  error
-	}{{nameTest: "finding_details", uuid: "p1", name: "Engine"},
-		{nameTest: "part_not_found", uuid: "asd", name: "Engine", wantErr: model.ErrPartNotFound}}
+	}{
+		{nameTest: "finding_details", uuid: "p1", name: "Engine"},
+		{nameTest: "part_not_found", uuid: "asd", name: "Engine", wantErr: model.ErrPartNotFound},
+	}
 	for _, tc := range tests {
 		t.Run(tc.nameTest, func(t *testing.T) {
 			part, err := rep.Get(context.Background(), tc.uuid)
@@ -50,5 +52,4 @@ func TestGet_ReturnsCopy(t *testing.T) {
 	require.NotEmpty(t, rep.parts["p1"].Metadata)
 
 	require.Equal(t, "MB-1", *rep.parts["p1"].Metadata["series"].String)
-
 }

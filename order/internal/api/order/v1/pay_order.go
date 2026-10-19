@@ -28,5 +28,4 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "invalid transaction id"}, nil
 	}
 	return &orderV1.PayOrderResponse{TransactionUUID: transactionUUID}, nil
-
 }

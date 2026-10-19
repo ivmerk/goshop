@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-
 	"github.com/ivmerk/goshop/order/internal/model"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )

@@ -34,5 +34,4 @@ func (s *service) Create(ctx context.Context, userUUID string, partUUIDs []strin
 		return nil, err
 	}
 	return order, nil
-
 }

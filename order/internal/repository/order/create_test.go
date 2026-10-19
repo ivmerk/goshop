@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/ivmerk/goshop/order/internal/model"
+	"github.com/stretchr/testify/require"
 )
 
 const newOrderUUID = "77777777-7777-7777-7777-777777777777"

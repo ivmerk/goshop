@@ -3,13 +3,11 @@ package payment
 import (
 	"context"
 
-	"github.com/ivmerk/goshop/payment/internal/model"
-
 	"github.com/google/uuid"
+	"github.com/ivmerk/goshop/payment/internal/model"
 )
 
-func (s *service) Pay(_ context.Context, orderUUID string, userUUID string, paymentMethod model.PaymentMethod) (string, error) {
-
+func (s *service) Pay(_ context.Context, orderUUID, userUUID string, paymentMethod model.PaymentMethod) (string, error) {
 	_, err := uuid.Parse(userUUID)
 	if err != nil {
 		return "", model.ErrInvalidUserUUID

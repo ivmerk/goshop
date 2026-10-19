@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/ivmerk/goshop/order/internal/model"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGet(t *testing.T) {

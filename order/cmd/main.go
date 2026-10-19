@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
@@ -35,7 +34,6 @@ const (
 )
 
 func main() {
-
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("ошибка подключения к inventory: %v", err)

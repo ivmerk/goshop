@@ -7,7 +7,6 @@ import (
 )
 
 func (s *service) Cancel(ctx context.Context, uuid string) error {
-
 	order, err := s.orderRepository.Get(ctx, uuid)
 	if err != nil {
 		return err

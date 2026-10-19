@@ -27,5 +27,4 @@ func (s *service) Pay(ctx context.Context, uuid string, method model.PaymentMeth
 		Transaction: &txID, Status: model.OrderStatusPaid, Payment: method,
 	})
 	return txID, err
-
 }

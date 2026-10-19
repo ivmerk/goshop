@@ -2,8 +2,10 @@ package model
 
 import "time"
 
-type OrderStatus string
-type PaymentMethod string
+type (
+	OrderStatus   string
+	PaymentMethod string
+)
 
 type Order struct {
 	UUID        string        `json:"uuid"`        // Уникальный идентификатор заказа

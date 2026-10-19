@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/ivmerk/goshop/inventory/internal/model"
-
 	repoConverter "github.com/ivmerk/goshop/inventory/internal/repository/converter"
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
 )

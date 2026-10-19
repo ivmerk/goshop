@@ -13,5 +13,6 @@ type service struct {
 
 func NewPartService(partRepository repository.PartRepository) *service {
 	return &service{
-		repository: partRepository}
+		repository: partRepository,
+	}
 }

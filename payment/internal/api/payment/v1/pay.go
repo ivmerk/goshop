@@ -21,7 +21,6 @@ func (p *PaymentAPI) PayOrder(ctx context.Context, req *paymentV1.PayOrderReques
 		default:
 			return nil, status.Error(codes.Internal, "internal error")
 		}
-
 	}
 
 	return &paymentV1.PayOrderResponse{

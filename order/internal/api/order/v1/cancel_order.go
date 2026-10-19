@@ -21,5 +21,4 @@ func (h *OrderHandler) CancelOrder(ctx context.Context, params orderV1.CancelOrd
 		}
 	}
 	return &orderV1.CancelOrderNoContent{}, nil
-
 }
