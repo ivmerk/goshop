@@ -13,7 +13,7 @@ func RequestLogger(next http.Handler) http.Handler {
 		startTime := time.Now()
 
 		// Логируем начало запроса
-		log.Printf("⏱️ Начало запроса: %s %s", r.Method, r.URL.Path)
+		log.Printf("⏱️ Начало запроса: %q %q", r.Method, r.URL.Path) //nolint:gosec // значения экранированы через %q
 
 		// Передаем управление следующему обработчику
 		next.ServeHTTP(w, r)
@@ -22,6 +22,6 @@ func RequestLogger(next http.Handler) http.Handler {
 		duration := time.Since(startTime)
 
 		// Логируем окончание запроса с временем выполнения
-		log.Printf("✅ Запрос завершен: %s %s, время выполнения: %v", r.Method, r.URL.Path, duration)
+		log.Printf("✅ Запрос завершен: %q %q, время выполнения: %v", r.Method, r.URL.Path, duration) //nolint:gosec // значения экранированы через %q
 	})
 }

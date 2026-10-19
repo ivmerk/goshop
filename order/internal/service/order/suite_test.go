@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	grpcMocks "github.com/ivmerk/goshop/order/internal/client/grpc/mocks"
 	repoMocks "github.com/ivmerk/goshop/order/internal/repository/mocks"
-	"github.com/stretchr/testify/suite"
 )
 
 const (

@@ -13,6 +13,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
@@ -21,8 +24,6 @@ import (
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -33,18 +34,26 @@ const (
 	paymentAddr       = "localhost:50052"
 )
 
+func closeConn(conn *grpc.ClientConn) {
+	if err := conn.Close(); err != nil {
+		log.Printf("ошибка закрытия соединения: %v", err)
+	}
+}
+
 func main() {
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("ошибка подключения к inventory: %v", err)
 	}
-	defer inventoryConn.Close()
+	defer closeConn(inventoryConn)
 
 	paymentConn, err := grpc.NewClient(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("ошибка подключения к payment: %v", err)
+		log.Printf("ошибка подключения к payment: %v", err)
+		return
 	}
-	defer paymentConn.Close()
+	defer closeConn(paymentConn)
+
 	orderRepository := orderRepo.NewOrderRepository()
 
 	inventoryClient := grpcClient.NewInventoryClient(inventoryV1.NewInventoryServiceClient(inventoryConn))
@@ -57,7 +66,8 @@ func main() {
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
 	if err != nil {
-		log.Fatalf("ошибка создания сервера OpenAPI: %v", err)
+		log.Printf("ошибка создания сервера OpenAPI: %v", err)
+		return
 	}
 
 	// Инициализируем роутер Chi

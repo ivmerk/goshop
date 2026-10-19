@@ -3,8 +3,9 @@ package order
 import (
 	"errors"
 
-	"github.com/ivmerk/goshop/order/internal/model"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/ivmerk/goshop/order/internal/model"
 )
 
 func (s *ServiceSuite) TestCreateSuccess() {

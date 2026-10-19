@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ivmerk/goshop/inventory/internal/model"
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
-	"github.com/stretchr/testify/require"
 )
 
 func TestList(t *testing.T) {

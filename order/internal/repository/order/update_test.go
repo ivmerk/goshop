@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ivmerk/goshop/order/internal/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ivmerk/goshop/order/internal/model"
 )
 
 func TestUpdate(t *testing.T) {

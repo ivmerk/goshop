@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
 )
 

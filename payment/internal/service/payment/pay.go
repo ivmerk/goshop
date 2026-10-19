@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/ivmerk/goshop/payment/internal/model"
 )
 

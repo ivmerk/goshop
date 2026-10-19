@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/ivmerk/goshop/payment/internal/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ivmerk/goshop/payment/internal/model"
 )
 
 const (

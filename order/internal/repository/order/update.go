@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/ivmerk/goshop/order/internal/model"
 	repoModel "github.com/ivmerk/goshop/order/internal/repository/model"
-	"github.com/samber/lo"
 )
 
 func (r *repository) Update(_ context.Context, uuid string, updatedOrder *model.OrderUpdateInfo) (string, error) {
