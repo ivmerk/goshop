@@ -17,16 +17,16 @@ jobs:
 
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5
 
       - name: 🛠 Set up Go
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
           cache: false # отключаем кэш go.sum в корне
 
       - name: 📌 Install Task
-        uses: arduino/setup-task@v2.0.0
+        uses: arduino/setup-task@v3
 
       - name: 🧪 Run unit tests via Taskfile
         env:

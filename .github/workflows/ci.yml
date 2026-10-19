@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5
 
       - name: Extract variables from Taskfile
         id: extract
@@ -45,6 +45,6 @@ jobs:
     with:
       modules: ${{ needs.extract-vars.outputs.modules }}
       go-version: ${{ needs.extract-vars.outputs.go-version }}
-      gist-id: "bf33a2bda0693f1162c4323702033d27"
+      gist-id: "46bf0f7a10ffaf0e26dc0646ad729a46"
     secrets:
       GIST_SECRET: ${{ secrets.GIST_SECRET }}
