@@ -1,52 +1,44 @@
-# 🧱 Домашнее задание — Неделя 2
+# 🧱 Домашнее задание — Неделя 3
 **Курс: «Микросервисы, как в BigTech 2.0»**
 
 ---
 
 ## 📌 Задание
 
-На этой неделе вы продолжаете развивать свои сервисы и приводите их архитектуру в соответствие с тем, что показывается в уроках. Также необходимо начать писать **unit-тесты** и обеспечить базовый уровень качества.
+На этой неделе вы начнёте работать с реальными хранилищами данных. Нужно заменить in-memory-реализации на полноценные СУБД и добавить поддержку миграций, а также docker-compose для локального запуска зависимостей сервисов.
 
 ### ✅ Что нужно сделать:
 
-1. Привести архитектуру **`OrderService`** к виду, показанному в уроках.
-2. Привести архитектуру **`InventoryService`** к виду, показанному в уроках.
-3. Привести архитектуру **`PaymentService`** к виду, показанному в уроках.
-4. Настроить вывод покрытия тестами в `README.md` (например, через `go test -cover`).
-5. Обеспечить **тестовое покрытие выше 40% unit-тестами** в каждом сервисе (`order`, `inventory`, `payment`).
-
----
-
-📁 Ваша цель — структурировать сервисы, выделив слои: `api`, `service`, `repository`, а также покрыть ключевые usecase тестами. Архитектурный стиль — чистая архитектура.
-
-📂 Для упрощения выполнения домашнего задания, в папке [`/boilerplates`](boilerplates) находятся вспомогательные файлы:
-- `Taskfile.yml` — файл с готовыми командами для генерации кода, форматирования, линтинга и других задач. Вы можете использовать этот файл для экономии времени, скопировав его в корень вашего проекта.
-  - В файле реализована команда `test-api`, которая запускает автоматические проверки вашего API. Эта команда выполняет ряд тестовых сценариев, взаимодействуя с вашими сервисами через HTTP и gRPC. Успешное прохождение этих тестов может служить подтверждением корректности реализации API.
-  - Также реализована команда `test-coverage`, которая запускает юнит-тесты и выводит процент покрытия кода тестами для каждого модуля.
-- `README.md` — пример файла с отображением бейджа покрытия тестами, который можно использовать в своем репозитории. **Важно**: вам потребуется адаптировать ссылку на бейдж под свой GitHub аккаунт, заменив идентификатор gist в URL.
-- Папка `workflows` — содержит готовые конфигурации для CI/CD. Для использования скопируйте их в директорию `.github/workflows` в корне вашего репозитория:
-  - `ci.yml` — основной конфигурационный файл, который запускает линтинг, тесты и обновляет бейдж покрытия
-  - `lint-reusable.yml` — запускает проверку линтером golangci-lint
-  - `test-reusable.yml` — запускает юнит-тесты для всех модулей
-  - `test-coverage-reusable.yml` — рассчитывает покрытие кода тестами и обновляет бейдж в Gist
+1. Добавить `docker-compose.yml`:
+    - `PostgreSQL` — для `OrderService`
+    - `MongoDB` — для `InventoryService`
+    - Разместить конфигурации в `deploy/compose/`:
+        - `deploy/compose/core/docker-compose.yml` - описание общей сети
+        - `deploy/compose/order/docker-compose.yml` - описание зависимостей Order Service (пока только PostgreSQL)
+        - `deploy/compose/inventory/docker-compose.yml` - описание зависимостей Inventory Service (пока только MongoDB)
+2. В `OrderService`:
+    - Заменить `map`-хранилище на работу с PostgreSQL
+    - Добавить миграции (`order/migrations/*.sql`)
+    - Обеспечить автоматический запуск миграций при старте сервиса
+3. В `InventoryService`:
+    - Заменить `map`-хранилище на MongoDB
+4. Обновить unit-тесты (если нужно), чтобы работали с новой реализацией
 
 ---
 
 ## 🛠 Рекомендации по оформлению проекта
 
-1. **Соблюдайте разделение слоёв**:
-  - `internal/api` — хендлеры (gRPC, HTTP)
-  - `internal/service` — бизнес-логика (интерфейсы и реализации)
-  - `internal/repository` — in-memory хранилище
-  - `internal/repository/model`, `internal/repository/converter` — сущности и конверторы repo слоя
-  - `internal/client` — внешние сервисы (например, `InventoryService`, `PaymentService`)
-  - `internal/model`, `internal/converter` — сущности и конверторы сервисного слоя
+1. **Используйте монорепозиторий с Go Workspaces**:
+  - Продолжайте работу с файлом `go.work`.
+  - Поддерживайте порядок и единообразие между сервисами.
 
-2. **Сгенерируйте моки для repo и сервисного слоёв через `mockery`**:
-  - Храните в `internal/repository/mocks/` и `internal/service/mocks/`.
+2. **Следуйте принципам чистой архитектуры**:
+  - Не смешивайте работу с базой данных с бизнес-логикой.
+  - Используйте интерфейсы для абстрагирования от конкретных СУБД.
 
-3. **Оформите `suite_test.go` и используйте `go test -coverprofile=coverage.out`**:
-  - Выведите итоговое покрытие в `README.md`.
+3. **Автоматизируйте настройку окружения**:
+  - Используйте Docker Compose для локальной разработки.
+  - Обеспечьте автоматическое применение миграций.
 
 ---
 
@@ -57,6 +49,14 @@
 ├── README.md
 ├── Taskfile.yml
 ├── buf.work.yaml
+├── deploy
+│   └── compose
+│       ├── core
+│       │   └── docker-compose.yml
+│       ├── inventory
+│       │   └── docker-compose.yml
+│       └── order
+│           └── docker-compose.yml
 ├── go.work
 ├── go.work.sum
 ├── inventory
@@ -105,66 +105,71 @@
 │   │   └── main.go
 │   ├── go.mod
 │   ├── go.sum
-│   └── internal
-│       ├── api
-│       │   └── order
-│       │       └── v1
-│       │           ├── api.go
-│       │           ├── cancel.go
-│       │           ├── create.go
-│       │           ├── get.go
-│       │           ├── new_order.go
-│       │           └── pay.go
-│       ├── client
-│       │   ├── converter
-│       │   │   └── part.go
-│       │   └── grpc
-│       │       ├── client.go
-│       │       ├── inventory
-│       │       │   └── v1
-│       │       │       ├── client.go
-│       │       │       └── list_parts.go
-│       │       ├── mocks
-│       │       │   ├── mock_inventory_client.go
-│       │       │   └── mock_payment_client.go
-│       │       └── payment
-│       │           └── v1
-│       │               ├── client.go
-│       │               └── pay_order.go
-│       ├── converter
-│       │   └── order.go
-│       ├── model
-│       │   ├── error.go
-│       │   ├── order.go
-│       │   └── part.go
-│       ├── repository
-│       │   ├── converter
-│       │   │   └── order.go
-│       │   ├── mocks
-│       │   │   └── mock_order_repository.go
-│       │   ├── model
-│       │   │   └── order.go
-│       │   ├── order
-│       │   │   ├── create.go
-│       │   │   ├── get.go
-│       │   │   ├── repository.go
-│       │   │   └── update.go
-│       │   └── repository.go
-│       └── service
-│           ├── mocks
-│           │   └── mock_order_service.go
-│           ├── order
-│           │   ├── cancel.go
-│           │   ├── cancel_test.go
-│           │   ├── create.go
-│           │   ├── create_test.go
-│           │   ├── get.go
-│           │   ├── get_test.go
-│           │   ├── pay.go
-│           │   ├── pay_test.go
-│           │   ├── service.go
-│           │   └── suite_test.go
-│           └── service.go
+│   ├── internal
+│   │   ├── api
+│   │   │   └── order
+│   │   │       └── v1
+│   │   │           ├── api.go
+│   │   │           ├── cancel.go
+│   │   │           ├── create.go
+│   │   │           ├── get.go
+│   │   │           ├── new_order.go
+│   │   │           └── pay.go
+│   │   ├── client
+│   │   │   ├── converter
+│   │   │   │   └── part.go
+│   │   │   └── grpc
+│   │   │       ├── client.go
+│   │   │       ├── inventory
+│   │   │       │   └── v1
+│   │   │       │       ├── client.go
+│   │   │       │       └── list_parts.go
+│   │   │       ├── mocks
+│   │   │       │   ├── mock_inventory_client.go
+│   │   │       │   └── mock_payment_client.go
+│   │   │       └── payment
+│   │   │           └── v1
+│   │   │               ├── client.go
+│   │   │               └── pay_order.go
+│   │   ├── converter
+│   │   │   └── order.go
+│   │   ├── migrator
+│   │   │   └── migrator.go
+│   │   ├── model
+│   │   │   ├── error.go
+│   │   │   ├── order.go
+│   │   │   └── part.go
+│   │   ├── repository
+│   │   │   ├── converter
+│   │   │   │   └── order.go
+│   │   │   ├── mocks
+│   │   │   │   └── mock_order_repository.go
+│   │   │   ├── model
+│   │   │   │   └── order.go
+│   │   │   ├── order
+│   │   │   │   ├── create.go
+│   │   │   │   ├── get.go
+│   │   │   │   ├── repository.go
+│   │   │   │   └── update.go
+│   │   │   └── repository.go
+│   │   └── service
+│   │       ├── mocks
+│   │       │   └── mock_order_service.go
+│   │       ├── order
+│   │       │   ├── cancel.go
+│   │       │   ├── cancel_test.go
+│   │       │   ├── create.go
+│   │       │   ├── create_test.go
+│   │       │   ├── get.go
+│   │       │   ├── get_test.go
+│   │       │   ├── pay.go
+│   │       │   ├── pay_test.go
+│   │       │   ├── service.go
+│   │       │   └── suite_test.go
+│   │       └── service.go
+│   └── migrations
+│       ├── 20250404191615_create_uuid_ossp_extension.sql
+│       └── 20250404191624_create_orders_table.sql
 ├── package-lock.json
 ├── package.json
 ├── payment
@@ -269,20 +274,45 @@
 
 ---
 
-### 🔧 Комментарии
+## ⚙️ Docker Compose
 
-- **Каждый сервис — отдельный модуль с `go.mod`**, подключённый в `go.work`.
-- **В каждом сервисе выделены слои: `api`, `service`, `repository`.**
-- **Контракты и автогенерация (`protobuf`, `ogen`) находятся в `shared/`**.
-- **Моки и тесты** для всех слоёв размещаются рядом с реализациями.
+- Конфигурации docker-compose расположены в `deploy/compose/`:
+    - `deploy/compose/core/docker-compose.yml` — инфраструктура
+    - `deploy/compose/order/docker-compose.yml` — Postgres
+    - `deploy/compose/inventory/docker-compose.yml` — MongoDB
+
+---
+
+## 🔄 Миграции
+
+- Миграции находятся в `order/migrations/` в виде `.sql` файлов.
+- Миграции должны применяться автоматически при старте OrderService (через `goose`).
+
+---
+
+📂 Для упрощения выполнения домашнего задания, в папке [`/boilerplates`](boilerplates) находятся вспомогательные файлы:
+- `Taskfile.yml` — файл с готовыми командами для генерации кода, форматирования, линтинга и работы с Docker Compose:
+  - Команды `up-*` и `down-*` для управления контейнерами различных сервисов (`up-core`, `up-inventory`, `up-order`, `up-all` и т.д.)
+  - Команда `test-api` для проверки работоспособности API всех сервисов
+  - Команда `test-coverage` для расчёта покрытия кода тестами
+- Папка `deploy/compose` с готовыми примерами Docker Compose конфигураций:
+  - `core` — базовая сеть для микросервисов
+  - `order` — конфигурация для PostgreSQL
+  - `inventory` — конфигурация для MongoDB
+- `README.md` — пример файла с отображением бейджа покрытия тестами, который можно использовать в своем репозитории. **Важно**: вам потребуется адаптировать ссылку на бейдж под свой GitHub аккаунт, заменив идентификатор gist в URL.
+- Папка `workflows` — содержит готовые конфигурации для CI/CD. Для использования скопируйте их в директорию `.github/workflows` в корне вашего репозитория:
+  - `ci.yml` — основной конфигурационный файл, который запускает линтинг, тесты и обновляет бейдж покрытия
+  - `lint-reusable.yml` — запускает проверку линтером golangci-lint
+  - `test-reusable.yml` — запускает юнит-тесты для всех модулей
+  - `test-coverage-reusable.yml` — рассчитывает покрытие кода тестами и обновляет бейдж в Gist
 
 ---
 
 ## 💡 Полезные подсказки
 
-- 📚 Прежде чем писать код, **ознакомьтесь с уроками второй недели** — они показывают, как правильно выделить слои и писать тесты.
-- 🧠 Если вы застряли — **обратитесь в чат или к ревьюеру**, особенно если за 30 минут не продвинулись.
-> **Спросить — не значит сдаться.** Это ускоряет обучение и избавляет от тупиков.
+- 📚 Посмотрите уроки третьей недели — они показывают подключение баз, структуру миграций и docker-compose.
+- 🧠 Если застряли — спрашивайте. Чем раньше — тем лучше.
+> **Спросить — не значит сдаться.** Это ускоряет обучение.
 
 ---
 
