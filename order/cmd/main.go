@@ -13,12 +13,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
+	"github.com/ivmerk/goshop/order/internal/migrator"
 	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
 	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
@@ -41,6 +45,47 @@ func closeConn(conn *grpc.ClientConn) {
 }
 
 func main() {
+
+	ctx := context.Background()
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Printf("failed to load .env file: %v\n", err)
+		return
+	}
+
+	dbURI := os.Getenv("DB_URI")
+
+	// Создаем соединение с базой данных
+	con, err := pgx.Connect(ctx, dbURI)
+	if err != nil {
+		log.Printf("failed to connect to database: %v\n", err)
+		return
+	}
+	defer func() {
+		cerr := con.Close(ctx)
+		if cerr != nil {
+			log.Printf("failed to close connection: %v\n", cerr)
+		}
+	}()
+
+	// Проверяем, что соединение с базой установлено
+	err = con.Ping(ctx)
+	if err != nil {
+		log.Printf("База данных недоступна: %v\n", err)
+		return
+	}
+
+	// Инициализируем мигратор
+	migrationsDir := os.Getenv("MIGRATIONS_DIR")
+	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*con.Config().Copy()), migrationsDir)
+
+	err = migratorRunner.Up()
+	if err != nil {
+		log.Printf("Ошибка миграции базы данных: %v\n", err)
+		return
+	}
+
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("ошибка подключения к inventory: %v", err)
