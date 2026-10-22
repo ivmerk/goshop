@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE orders (
-    uuid        UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
+    uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "user"      TEXT          NOT NULL,
     parts       TEXT[]        NOT NULL,
     total       NUMERIC(12,2) NOT NULL CHECK (total >= 0),

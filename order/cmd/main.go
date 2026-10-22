@@ -31,11 +31,12 @@ import (
 )
 
 const (
-	httpPort          = "8080"
-	readHeaderTimeout = 5 * time.Second
-	shutdownTimeout   = 10 * time.Second
-	inventoryAddr     = "localhost:50051"
-	paymentAddr       = "localhost:50052"
+	httpPort             = "8080"
+	readHeaderTimeout    = 5 * time.Second
+	shutdownTimeout      = 10 * time.Second
+	defaultMigrationsDir = "order/migrations"
+	inventoryAddr        = "localhost:50051"
+	paymentAddr          = "localhost:50052"
 )
 
 func closeConn(conn *grpc.ClientConn) {
@@ -48,13 +49,15 @@ func main() {
 
 	ctx := context.Background()
 
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Printf("failed to load .env file: %v\n", err)
-		return
+	if err := godotenv.Load("order/.env"); err != nil {
+		log.Printf(".env не загружен: %v", err)
 	}
 
 	dbURI := os.Getenv("DB_URI")
+	if dbURI == "" {
+		log.Printf("переменная окружения DB_URI не задана (см. order/.env.example)")
+		return
+	}
 
 	// Создаем соединение с базой данных
 	con, err := pgx.Connect(ctx, dbURI)
@@ -78,6 +81,9 @@ func main() {
 
 	// Инициализируем мигратор
 	migrationsDir := os.Getenv("MIGRATIONS_DIR")
+	if migrationsDir == "" {
+		migrationsDir = defaultMigrationsDir
+	}
 	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*con.Config().Copy()), migrationsDir)
 
 	err = migratorRunner.Up()
