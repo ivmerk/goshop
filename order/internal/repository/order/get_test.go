@@ -2,76 +2,83 @@ package order
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/pashagolub/pgxmock/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ivmerk/goshop/order/internal/model"
 )
 
-func TestGet(t *testing.T) {
-	tests := []struct {
-		name       string
-		uuid       string
-		wantStatus model.OrderStatus
-		wantTx     bool
-		wantErr    error
-	}{
-		{name: "pending_order", uuid: pendingOrderUUID, wantStatus: model.OrderStatusPendingPayment},
-		{name: "paid_order", uuid: paidOrderUUID, wantStatus: model.OrderStatusPaid, wantTx: true},
-		{name: "not_found", uuid: "99999999-9999-9999-9999-999999999999", wantErr: model.ErrOrderNotFound},
-		{name: "empty_uuid", uuid: "", wantErr: model.ErrOrderNotFound},
-	}
+var getColumns = []string{"uuid", "user", "parts", "total", "payment", "transaction", "status", "created_at", "updated_at"}
 
-	rep := newTestRepo()
+func TestGet_Success(t *testing.T) {
+	repo, mock := newTestRepo(t)
+	createdAt := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Hour)
+	tx := transactionUUID
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := rep.Get(context.Background(), tc.uuid)
+	mock.ExpectQuery("SELECT .* FROM orders").
+		WithArgs(paidOrderUUID).
+		WillReturnRows(pgxmock.NewRows(getColumns).AddRow(
+			paidOrderUUID, userUUID, []string{partUUID1}, 12500.5, "CARD", &tx, "PAID", createdAt, &updatedAt,
+		))
 
-			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
-				require.Nil(t, got)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.uuid, got.UUID)
-			require.Equal(t, userUUID, got.User)
-			require.Equal(t, tc.wantStatus, got.Status)
-			if tc.wantTx {
-				require.NotNil(t, got.Transaction)
-				require.Equal(t, transactionUUID, *got.Transaction)
-			} else {
-				require.Nil(t, got.Transaction)
-			}
-		})
-	}
-}
-
-func TestGet_ReturnsAllFields(t *testing.T) {
-	rep := newTestRepo()
-
-	got, err := rep.Get(context.Background(), paidOrderUUID)
+	got, err := repo.Get(context.Background(), paidOrderUUID)
 
 	require.NoError(t, err)
+	require.Equal(t, paidOrderUUID, got.UUID)
+	require.Equal(t, userUUID, got.User)
 	require.Equal(t, []string{partUUID1}, got.Parts)
 	require.InDelta(t, 12500.5, got.Total, 0.0001)
 	require.Equal(t, model.PaymentMethodCard, got.Payment)
 	require.Equal(t, model.OrderStatusPaid, got.Status)
+	require.NotNil(t, got.Transaction)
+	require.Equal(t, transactionUUID, *got.Transaction)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestGet_ReturnsCopy(t *testing.T) {
-	rep := newTestRepo()
+func TestGet_NullTransaction(t *testing.T) {
+	repo, mock := newTestRepo(t)
 
-	got, err := rep.Get(context.Background(), paidOrderUUID)
+	mock.ExpectQuery("SELECT .* FROM orders").
+		WithArgs(pendingOrderUUID).
+		WillReturnRows(pgxmock.NewRows(getColumns).AddRow(
+			pendingOrderUUID, userUUID, []string{partUUID1, partUUID2}, 15700.5, "CARD", (*string)(nil),
+			"PENDING_PAYMENT", time.Now(), (*time.Time)(nil),
+		))
+
+	got, err := repo.Get(context.Background(), pendingOrderUUID)
+
 	require.NoError(t, err)
+	require.Nil(t, got.Transaction)
+	require.Equal(t, model.OrderStatusPendingPayment, got.Status)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
 
-	got.Parts[0] = "changed"
-	*got.Transaction = "changed"
-	got.User = "changed"
+func TestGet_NotFound(t *testing.T) {
+	repo, mock := newTestRepo(t)
+	mock.ExpectQuery("SELECT .* FROM orders").WithArgs(pendingOrderUUID).WillReturnError(pgx.ErrNoRows)
 
-	stored := rep.orders[paidOrderUUID]
-	require.Equal(t, partUUID1, stored.Parts[0])
-	require.Equal(t, transactionUUID, *stored.Transaction)
-	require.Equal(t, userUUID, stored.User)
+	got, err := repo.Get(context.Background(), pendingOrderUUID)
+
+	require.ErrorIs(t, err, model.ErrOrderNotFound)
+	require.Nil(t, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGet_DBError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+	dbErr := errors.New("connection lost")
+	mock.ExpectQuery("SELECT .* FROM orders").WithArgs(pendingOrderUUID).WillReturnError(dbErr)
+
+	got, err := repo.Get(context.Background(), pendingOrderUUID)
+
+	require.ErrorIs(t, err, dbErr)
+	require.NotErrorIs(t, err, model.ErrOrderNotFound)
+	require.Nil(t, got)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

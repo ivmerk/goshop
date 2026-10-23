@@ -8,8 +8,8 @@ require (
 	github.com/ivmerk/goshop/shared v0.0.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
+	github.com/pashagolub/pgxmock/v5 v5.2.0
 	github.com/pressly/goose/v3 v3.29.0
-	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.84.0
 )

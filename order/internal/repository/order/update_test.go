@@ -2,113 +2,81 @@ package order
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
+	"github.com/pashagolub/pgxmock/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ivmerk/goshop/order/internal/model"
 )
 
-func TestUpdate(t *testing.T) {
-	tx := "88888888-8888-8888-8888-888888888888"
+const updateQuery = "UPDATE orders"
 
-	tests := []struct {
-		name        string
-		uuid        string
-		info        *model.OrderUpdateInfo
-		wantStatus  string
-		wantPayment string
-		wantTx      string
-		wantErr     error
-	}{
-		{
-			name: "pay_pending_order",
-			uuid: pendingOrderUUID,
-			info: &model.OrderUpdateInfo{
-				Transaction: &tx,
-				Status:      model.OrderStatusPaid,
-				Payment:     model.PaymentMethodSbp,
-			},
-			wantStatus:  "PAID",
-			wantPayment: "SBP",
-			wantTx:      tx,
-		},
-		{
-			name:       "cancel_pending_order",
-			uuid:       pendingOrderUUID,
-			info:       &model.OrderUpdateInfo{Status: model.OrderStatusCancelled},
-			wantStatus: "CANCELLED",
-		},
-		{
-			name:        "empty_status_keeps_old_one",
-			uuid:        paidOrderUUID,
-			info:        &model.OrderUpdateInfo{},
-			wantStatus:  "PAID",
-			wantPayment: "CARD",
-			wantTx:      transactionUUID,
-		},
-		{
-			name:    "order_not_found",
-			uuid:    "99999999-9999-9999-9999-999999999999",
-			info:    &model.OrderUpdateInfo{Status: model.OrderStatusPaid},
-			wantErr: model.ErrOrderNotFound,
-		},
-	}
+func TestUpdate_Success(t *testing.T) {
+	repo, mock := newTestRepo(t)
+	tx := transactionUUID
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			rep := newTestRepo()
-			start := time.Now()
+	mock.ExpectExec(updateQuery).
+		WithArgs(pendingOrderUUID, &tx, "PAID", "SBP").
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
-			got, err := rep.Update(context.Background(), tc.uuid, tc.info)
+	got, err := repo.Update(context.Background(), pendingOrderUUID, &model.OrderUpdateInfo{
 
-			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
-				require.Empty(t, got)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.uuid, got)
+		Transaction: &tx,
+		Status:      model.OrderStatusPaid,
+		Payment:     model.PaymentMethodSbp,
+	})
 
-			stored := rep.orders[tc.uuid]
-			require.EqualValues(t, tc.wantStatus, stored.Status)
-			require.EqualValues(t, tc.wantPayment, stored.Payment)
-			if tc.wantTx == "" {
-				require.Nil(t, stored.Transaction)
-			} else {
-				require.NotNil(t, stored.Transaction)
-				require.Equal(t, tc.wantTx, *stored.Transaction)
-			}
-			require.NotNil(t, stored.UpdatedAt)
-			require.False(t, stored.UpdatedAt.Before(start))
-		})
-	}
+	require.NoError(t, err)
+	require.Equal(t, pendingOrderUUID, got)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUpdate_KeepsOtherFields(t *testing.T) {
-	rep := newTestRepo()
-	before := *rep.orders[paidOrderUUID]
+func TestUpdate_EmptyFieldsArePassedAsKeepOld(t *testing.T) {
+	repo, mock := newTestRepo(t)
 
-	_, err := rep.Update(context.Background(), paidOrderUUID,
-		&model.OrderUpdateInfo{Status: model.OrderStatusCancelled})
+	mock.ExpectExec(updateQuery).
+		WithArgs(paidOrderUUID, (*string)(nil), "", "").
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+
+	got, err := repo.Update(context.Background(), paidOrderUUID, &model.OrderUpdateInfo{})
+
 	require.NoError(t, err)
-
-	after := rep.orders[paidOrderUUID]
-	require.Equal(t, before.User, after.User)
-	require.Equal(t, before.Parts, after.Parts)
-	require.Equal(t, before.Total, after.Total)
-	require.Equal(t, before.CreatedAt, after.CreatedAt)
+	require.Equal(t, paidOrderUUID, got)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUpdate_StoresCopyOfTransaction(t *testing.T) {
-	rep := newTestRepo()
-	tx := "88888888-8888-8888-8888-888888888888"
+func TestUpdate_NotFound(t *testing.T) {
+	repo, mock := newTestRepo(t)
 
-	_, err := rep.Update(context.Background(), pendingOrderUUID,
-		&model.OrderUpdateInfo{Transaction: &tx})
-	require.NoError(t, err)
+	mock.ExpectExec(updateQuery).
+		WithArgs(pendingOrderUUID, (*string)(nil), "CANCELLED", "").
+		WillReturnResult(pgxmock.NewResult("UPDATE", 0))
 
-	tx = "changed" // меняем исходную переменную после Update
-	require.Equal(t, "88888888-8888-8888-8888-888888888888", *rep.orders[pendingOrderUUID].Transaction)
+	got, err := repo.Update(context.Background(), pendingOrderUUID, &model.OrderUpdateInfo{
+		Status: model.OrderStatusCancelled,
+	})
+
+	require.ErrorIs(t, err, model.ErrOrderNotFound)
+	require.Empty(t, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdate_DBError(t *testing.T) {
+	repo, mock := newTestRepo(t)
+	dbErr := errors.New("connection lost")
+
+	mock.ExpectExec(updateQuery).
+		WithArgs(pendingOrderUUID, (*string)(nil), "CANCELLED", "").
+		WillReturnError(dbErr)
+
+	got, err := repo.Update(context.Background(), pendingOrderUUID, &model.OrderUpdateInfo{
+		Status: model.OrderStatusCancelled,
+	})
+
+	require.ErrorIs(t, err, dbErr)
+	require.NotErrorIs(t, err, model.ErrOrderNotFound)
+	require.Empty(t, got)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

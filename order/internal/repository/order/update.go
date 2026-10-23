@@ -2,32 +2,25 @@ package order
 
 import (
 	"context"
-	"time"
-
-	"github.com/samber/lo"
 
 	"github.com/ivmerk/goshop/order/internal/model"
-	repoModel "github.com/ivmerk/goshop/order/internal/repository/model"
 )
 
-func (r *repository) Update(_ context.Context, uuid string, updatedOrder *model.OrderUpdateInfo) (string, error) {
+func (r *repository) Update(ctx context.Context, uuid string, updatedOrder *model.OrderUpdateInfo) (string, error) {
 
-	existingOrder, ok := r.orders[uuid]
-	if !ok {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE orders 
+	SET  transaction = COALESCE($2, transaction),
+		status      = COALESCE(NULLIF($3, ''), status),
+    payment     = COALESCE(NULLIF($4, ''), payment),
+    updated_at  = now()
+	WHERE uuid = $1`, uuid, updatedOrder.Transaction, string(updatedOrder.Status), string(updatedOrder.Payment))
+	if err != nil {
+		return "", err
+	}
+	if tag.RowsAffected() == 0 {
 		return "", model.ErrOrderNotFound
 	}
+	return uuid, nil
 
-	if updatedOrder.Transaction != nil {
-		existingOrder.Transaction = lo.ToPtr(*updatedOrder.Transaction)
-	}
-	if updatedOrder.Status != "" {
-		existingOrder.Status = repoModel.OrderStatus(updatedOrder.Status)
-	}
-	if updatedOrder.Payment != "" {
-		existingOrder.Payment = repoModel.PaymentMethod(updatedOrder.Payment)
-	}
-
-	existingOrder.UpdatedAt = lo.ToPtr(time.Now())
-
-	return existingOrder.UUID, nil
 }

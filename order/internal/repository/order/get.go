@@ -6,12 +6,12 @@ import (
 
 	"github.com/ivmerk/goshop/order/internal/model"
 	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
-	repositoryModel "github.com/ivmerk/goshop/order/internal/repository/model"
+	repoModel "github.com/ivmerk/goshop/order/internal/repository/model"
 	"github.com/jackc/pgx/v5"
 )
 
 func (r *repository) Get(ctx context.Context, uuid string) (*model.Order, error) {
-	var o repositoryModel.Order
+	var o repoModel.Order
 	err := r.pool.QueryRow(ctx,
 		`SELECT uuid, "user", parts, total, payment, transaction, status, created_at, updated_at FROM orders WHERE uuid=$1`, uuid).Scan(&o.UUID, &o.User, &o.Parts, &o.Total, &o.Payment,
 		&o.Transaction, &o.Status, &o.CreatedAt, &o.UpdatedAt)
