@@ -11,7 +11,7 @@ func ToRepositoryOrder(order *model.Order) *repositoryModel.Order {
 	return &repositoryModel.Order{
 		UUID:        order.UUID,
 		User:        order.User,
-		Parts:       slices.Clone(order.Parts),
+		Parts:       cloneParts(order.Parts),
 		Total:       order.Total,
 		Transaction: clonePtr(order.Transaction),
 		Status:      repositoryModel.OrderStatus(order.Status),
@@ -37,4 +37,9 @@ func clonePtr(s *string) *string {
 	}
 	v := *s
 	return &v
+}
+func cloneParts(parts []string) []string {
+	out := make([]string, len(parts))
+	copy(out, parts)
+	return out
 }

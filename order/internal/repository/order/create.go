@@ -2,27 +2,34 @@ package order
 
 import (
 	"context"
-	"time"
+	"errors"
 
 	"github.com/ivmerk/goshop/order/internal/model"
 	repoConverter "github.com/ivmerk/goshop/order/internal/repository/converter"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func (r *repository) Create(_ context.Context, order *model.Order) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+const pgUniqueViolation = "23505"
+
+func (r *repository) Create(ctx context.Context, order *model.Order) (string, error) {
 
 	if order.UUID == "" {
 		return "", model.ErrInvalidOrderUUID
 	}
 
-	if _, exists := r.orders[order.UUID]; exists {
-		return "", model.ErrOrderAlreadyExists
+	o := repoConverter.ToRepositoryOrder(order)
+
+	_, err := r.pool.Exec(ctx,
+		`INSERT INTO orders (uuid, "user", parts, total, payment, transaction, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		o.UUID, o.User, o.Parts, o.Total, o.Payment, o.Transaction, o.Status)
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return "", model.ErrOrderAlreadyExists
+		}
+		return "", err
 	}
-
-	repoOrder := repoConverter.ToRepositoryOrder(order)
-	repoOrder.CreatedAt = time.Now()
-	r.orders[repoOrder.UUID] = repoOrder
-
-	return repoOrder.UUID, nil
+	return o.UUID, nil
 }

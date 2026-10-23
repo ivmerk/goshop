@@ -11,8 +11,6 @@ import (
 )
 
 func (r *repository) Update(_ context.Context, uuid string, updatedOrder *model.OrderUpdateInfo) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	existingOrder, ok := r.orders[uuid]
 	if !ok {

@@ -1,21 +1,26 @@
 package order
 
 import (
-	"sync"
+	"context"
 
 	def "github.com/ivmerk/goshop/order/internal/repository"
-	repoModel "github.com/ivmerk/goshop/order/internal/repository/model"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var _ def.OrderRepository = (*repository)(nil)
 
-type repository struct {
-	mu     sync.RWMutex
-	orders map[string]*repoModel.Order
+type dbPool interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewOrderRepository() *repository {
+type repository struct {
+	pool dbPool
+}
+
+func NewOrderRepository(pool dbPool) *repository {
 	return &repository{
-		orders: make(map[string]*repoModel.Order),
+		pool: pool,
 	}
 }

@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -60,22 +60,15 @@ func main() {
 	}
 
 	// Создаем соединение с базой данных
-	con, err := pgx.Connect(ctx, dbURI)
+	pool, err := pgxpool.New(ctx, dbURI)
 	if err != nil {
 		log.Printf("failed to connect to database: %v\n", err)
 		return
 	}
-	defer func() {
-		cerr := con.Close(ctx)
-		if cerr != nil {
-			log.Printf("failed to close connection: %v\n", cerr)
-		}
-	}()
+	defer pool.Close()
 
-	// Проверяем, что соединение с базой установлено
-	err = con.Ping(ctx)
-	if err != nil {
-		log.Printf("База данных недоступна: %v\n", err)
+	if err := pool.Ping(ctx); err != nil {
+		log.Printf("база данных недоступна: %v", err)
 		return
 	}
 
@@ -84,7 +77,8 @@ func main() {
 	if migrationsDir == "" {
 		migrationsDir = defaultMigrationsDir
 	}
-	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*con.Config().Copy()), migrationsDir)
+	db := stdlib.OpenDBFromPool(pool)
+	migratorRunner := migrator.NewMigrator(db, migrationsDir)
 
 	err = migratorRunner.Up()
 	if err != nil {
