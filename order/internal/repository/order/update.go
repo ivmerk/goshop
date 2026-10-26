@@ -7,7 +7,6 @@ import (
 )
 
 func (r *repository) Update(ctx context.Context, uuid string, updatedOrder *model.OrderUpdateInfo) (string, error) {
-
 	tag, err := r.pool.Exec(ctx,
 		`UPDATE orders 
 	SET  transaction = COALESCE($2, transaction),
@@ -22,5 +21,4 @@ func (r *repository) Update(ctx context.Context, uuid string, updatedOrder *mode
 		return "", model.ErrOrderNotFound
 	}
 	return uuid, nil
-
 }

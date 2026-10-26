@@ -38,6 +38,7 @@ func clonePtr(s *string) *string {
 	v := *s
 	return &v
 }
+
 func cloneParts(parts []string) []string {
 	out := make([]string, len(parts))
 	copy(out, parts)

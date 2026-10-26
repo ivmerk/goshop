@@ -46,7 +46,6 @@ func closeConn(conn *grpc.ClientConn) {
 }
 
 func main() {
-
 	ctx := context.Background()
 
 	if err := godotenv.Load("order/.env"); err != nil {
@@ -88,7 +87,8 @@ func main() {
 
 	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("ошибка подключения к inventory: %v", err)
+		log.Printf("ошибка подключения к inventory: %v", err)
+		return
 	}
 	defer closeConn(inventoryConn)
 

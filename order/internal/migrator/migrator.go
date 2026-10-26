@@ -21,7 +21,6 @@ func NewMigrator(db *sql.DB, migrationsDir string) *Migrator {
 }
 
 func (m *Migrator) Up() error {
-
 	if _, err := os.Stat(m.migrationsDir); err != nil {
 		return fmt.Errorf("migrations dir %q: %w", m.migrationsDir, err)
 	}

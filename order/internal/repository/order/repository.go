@@ -3,9 +3,10 @@ package order
 import (
 	"context"
 
-	def "github.com/ivmerk/goshop/order/internal/repository"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	def "github.com/ivmerk/goshop/order/internal/repository"
 )
 
 var _ def.OrderRepository = (*repository)(nil)

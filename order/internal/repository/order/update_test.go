@@ -22,7 +22,6 @@ func TestUpdate_Success(t *testing.T) {
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 	got, err := repo.Update(context.Background(), pendingOrderUUID, &model.OrderUpdateInfo{
-
 		Transaction: &tx,
 		Status:      model.OrderStatusPaid,
 		Payment:     model.PaymentMethodSbp,
