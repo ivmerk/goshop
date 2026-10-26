@@ -25,20 +25,14 @@ const grpcPort = "50051"
 func main() {
 	ctx := context.Background()
 
-	lis, err := net.Listen("tcp", ":"+grpcPort)
-	if err != nil {
-		log.Printf("failed to listen: %v", err)
-		return
-	}
-
 	if err := godotenv.Load("inventory/.env"); err != nil {
 		log.Printf(".env не загружен: %v", err)
 	}
 
 	dbURI := os.Getenv("MONGO_URI")
 	mongoDBName := os.Getenv("MONGO_DB_NAME")
-	if dbURI == "" {
-		log.Printf("переменная окружения MONGO_URI не задана (см. inventory/.env.example)")
+	if dbURI == "" || mongoDBName == "" {
+		log.Printf("MONGO_URI и MONGO_DB_NAME должны быть заданы (см. inventory/.env.example)")
 		return
 	}
 
@@ -47,7 +41,13 @@ func main() {
 		log.Printf("ошибка подключения к mongo: %v", err)
 		return
 	}
-	defer client.Disconnect(ctx)
+
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			log.Printf("ошибка отключения от mongo: %v", err)
+		}
+	}()
+
 	if err := client.Ping(ctx, nil); err != nil {
 		log.Printf("база данных недоступна: %v", err)
 		return
@@ -68,6 +68,11 @@ func main() {
 
 	reflection.Register(server)
 
+	lis, err := net.Listen("tcp", ":"+grpcPort)
+	if err != nil {
+		log.Printf("failed to listen: %v", err)
+		return
+	}
 	go func() {
 		log.Printf("🚀 gRPC InventoryService запущен на порту %s", grpcPort)
 		if err := server.Serve(lis); err != nil {

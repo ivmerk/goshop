@@ -2,55 +2,53 @@ package part
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/ivmerk/goshop/inventory/internal/model"
 )
 
-func TestGet(t *testing.T) {
-	rep := newTestRepo()
-	tests := []struct {
-		nameTest string
-		uuid     string
-		name     string
-		wantErr  error
-	}{
-		{nameTest: "finding_details", uuid: "p1", name: "Engine"},
-		{nameTest: "part_not_found", uuid: "asd", name: "Engine", wantErr: model.ErrPartNotFound},
+func TestGet_Success(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	coll.findOne = func(filter any) *mongo.SingleResult {
+		require.Equal(t, bson.M{"_id": partUUID1}, filter)
+		return mongo.NewSingleResultFromDocument(testPart(), nil, nil)
 	}
-	for _, tc := range tests {
-		t.Run(tc.nameTest, func(t *testing.T) {
-			part, err := rep.Get(context.Background(), tc.uuid)
-			if tc.wantErr != nil {
-				require.ErrorIs(t, err, tc.wantErr)
-				require.Empty(t, part)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.name, part.Name)
-			require.Equal(t, tc.uuid, part.UUID)
-		})
-	}
+
+	got, err := rep.Get(context.Background(), partUUID1)
+
+	require.NoError(t, err)
+	require.Equal(t, partUUID1, got.UUID)
+	require.Equal(t, "Engine", got.Name)
+	require.Equal(t, model.CategoryEngine, got.Category)
 }
 
-func TestGet_ReturnsCopy(t *testing.T) {
-	rep := newTestRepo()
-	original := rep.parts["p1"].Tags[0]
-	got, err := rep.Get(context.Background(), "p1")
-	require.NoError(t, err)
-
-	got.Tags[0] = "changed"
-	got.Name = "changed"
-
-	stored := rep.parts["p1"]
-	require.Equal(t, original, stored.Tags[0])
-	require.NotEqual(t, "changed", stored.Name)
-	for k := range got.Metadata {
-		delete(got.Metadata, k)
+func TestGet_NotFound(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	coll.findOne = func(any) *mongo.SingleResult {
+		return mongo.NewSingleResultFromDocument(bson.D{}, mongo.ErrNoDocuments, nil)
 	}
-	require.NotEmpty(t, rep.parts["p1"].Metadata)
 
-	require.Equal(t, "MB-1", *rep.parts["p1"].Metadata["series"].String)
+	got, err := rep.Get(context.Background(), partUUID1)
+
+	require.ErrorIs(t, err, model.ErrPartNotFound)
+	require.Nil(t, got)
+}
+
+func TestGet_DBError(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	dbErr := errors.New("connection lost")
+	coll.findOne = func(any) *mongo.SingleResult {
+		return mongo.NewSingleResultFromDocument(bson.D{}, dbErr, nil)
+	}
+
+	got, err := rep.Get(context.Background(), partUUID1)
+
+	require.ErrorIs(t, err, dbErr)
+	require.NotErrorIs(t, err, model.ErrPartNotFound)
+	require.Nil(t, got)
 }

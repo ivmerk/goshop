@@ -2,116 +2,133 @@ package part
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/ivmerk/goshop/inventory/internal/model"
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
 )
 
-func TestList(t *testing.T) {
+func TestBuildFilter(t *testing.T) {
 	tests := []struct {
 		name   string
 		filter model.PartsFilter
-		want   []string
+		want   bson.M
 	}{
 		{
-			name: "empty_filter_returns_all",
-			want: []string{"p1", "p2", "p3"},
+			name: "empty_filter",
+			want: bson.M{},
 		},
 		{
-			name:   "filter_by_uuids",
-			filter: model.PartsFilter{UUIDs: []string{"p1", "p3"}},
-			want:   []string{"p1", "p3"},
+			name:   "uuids",
+			filter: model.PartsFilter{UUIDs: []string{partUUID1, partUUID2}},
+			want:   bson.M{"_id": bson.M{"$in": []string{partUUID1, partUUID2}}},
 		},
 		{
-			name:   "filter_by_names",
-			filter: model.PartsFilter{Names: []string{"Tank"}},
-			want:   []string{"p2"},
+			name:   "names",
+			filter: model.PartsFilter{Names: []string{"Engine"}},
+			want:   bson.M{"name": bson.M{"$in": []string{"Engine"}}},
 		},
 		{
-			name:   "filter_by_categories",
+			name:   "categories",
 			filter: model.PartsFilter{Categories: []model.Category{model.CategoryEngine, model.CategoryFuel}},
-			want:   []string{"p1", "p2"},
+			want:   bson.M{"category": bson.M{"$in": []model.Category{model.CategoryEngine, model.CategoryFuel}}},
 		},
 		{
-			name:   "filter_by_country",
+			name:   "manufacturer_countries",
 			filter: model.PartsFilter{ManufacturerCountries: []string{"Germany"}},
-			want:   []string{"p1"},
+			want:   bson.M{"manufacturer.country": bson.M{"$in": []string{"Germany"}}},
 		},
 		{
-			name:   "country_filter_skips_part_without_manufacturer",
-			filter: model.PartsFilter{UUIDs: []string{"p3"}, ManufacturerCountries: []string{"Germany"}},
-			want:   []string{},
+			name:   "tags",
+			filter: model.PartsFilter{Tags: []string{"main", "glass"}},
+			want:   bson.M{"tags": bson.M{"$in": []string{"main", "glass"}}},
 		},
 		{
-			name:   "filter_by_tags_matches_any_tag",
-			filter: model.PartsFilter{Tags: []string{"fuel", "glass"}},
-			want:   []string{"p2", "p3"},
-		},
-		{
-			name: "fields_are_combined_with_and",
+			name: "all_fields_are_combined",
 			filter: model.PartsFilter{
-				Categories: []model.Category{model.CategoryEngine},
-				Tags:       []string{"engine"},
+				UUIDs:                 []string{partUUID1},
+				Names:                 []string{"Engine"},
+				Categories:            []model.Category{model.CategoryEngine},
+				ManufacturerCountries: []string{"Germany"},
+				Tags:                  []string{"main"},
 			},
-			want: []string{"p1"},
-		},
-		{
-			name: "conflicting_fields_return_nothing",
-			filter: model.PartsFilter{
-				Categories: []model.Category{model.CategoryEngine},
-				Tags:       []string{"fuel"},
+			want: bson.M{
+				"_id":                  bson.M{"$in": []string{partUUID1}},
+				"name":                 bson.M{"$in": []string{"Engine"}},
+				"category":             bson.M{"$in": []model.Category{model.CategoryEngine}},
+				"manufacturer.country": bson.M{"$in": []string{"Germany"}},
+				"tags":                 bson.M{"$in": []string{"main"}},
 			},
-			want: []string{},
-		},
-		{
-			name:   "no_match_returns_empty_list",
-			filter: model.PartsFilter{Names: []string{"NOPE"}},
-			want:   []string{},
 		},
 	}
 
-	rep := newTestRepo()
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parts, err := rep.List(context.Background(), tc.filter)
-			require.NoError(t, err)
-
-			got := make([]string, 0, len(parts))
-			for _, part := range parts {
-				got = append(got, part.UUID)
-			}
-			require.ElementsMatch(t, tc.want, got)
+			require.Equal(t, tc.want, buildFilter(tc.filter))
 		})
 	}
 }
 
-func TestList_EmptyRepository(t *testing.T) {
-	rep := &repository{parts: map[string]*repoModel.Part{}}
+func TestList_Success(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	filter := model.PartsFilter{Categories: []model.Category{model.CategoryEngine}}
+	second := &repoModel.Part{UUID: partUUID2, Name: "Tank", Category: repoModel.CategoryFuel}
+
+	coll.find = func(got any) (*mongo.Cursor, error) {
+		require.Equal(t, buildFilter(filter), got)
+		return mongo.NewCursorFromDocuments([]any{testPart(), second}, nil, nil)
+	}
+
+	parts, err := rep.List(context.Background(), filter)
+
+	require.NoError(t, err)
+	require.Len(t, parts, 2)
+	require.Equal(t, partUUID1, parts[0].UUID)
+	require.Equal(t, model.CategoryEngine, parts[0].Category)
+	require.Equal(t, "Germany", parts[0].Manufacturer.Country)
+	require.Equal(t, partUUID2, parts[1].UUID)
+}
+
+func TestList_Empty(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	coll.find = func(any) (*mongo.Cursor, error) {
+		return mongo.NewCursorFromDocuments([]any{}, nil, nil)
+	}
 
 	parts, err := rep.List(context.Background(), model.PartsFilter{})
 
 	require.NoError(t, err)
+	require.NotNil(t, parts)
 	require.Empty(t, parts)
 }
 
-func TestNewPartRepository_IsSeeded(t *testing.T) {
-	rep := NewPartRepository()
+func TestList_FindError(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	dbErr := errors.New("connection lost")
+	coll.find = func(any) (*mongo.Cursor, error) {
+		return nil, dbErr
+	}
 
 	parts, err := rep.List(context.Background(), model.PartsFilter{})
-	require.NoError(t, err)
-	require.Len(t, parts, 4)
 
-	withMetadata := 0
-	for _, part := range parts {
-		require.NotEmpty(t, part.UUID)
-		require.NotEmpty(t, part.Name)
-		if len(part.Metadata) > 0 {
-			withMetadata++
-		}
+	require.ErrorIs(t, err, dbErr)
+	require.Nil(t, parts)
+}
+
+func TestList_DecodeError(t *testing.T) {
+	rep, coll := newTestRepo(t)
+	coll.find = func(any) (*mongo.Cursor, error) {
+		// _id числом не декодируется в строковый UUID — cursor.All вернёт ошибку
+		return mongo.NewCursorFromDocuments([]any{bson.M{"_id": 123}}, nil, nil)
 	}
-	require.Equal(t, 1, withMetadata)
+
+	parts, err := rep.List(context.Background(), model.PartsFilter{})
+
+	require.Error(t, err)
+	require.Nil(t, parts)
 }
