@@ -13,36 +13,36 @@ const (
 )
 
 type Dimensions struct {
-	Length float64
-	Width  float64
-	Height float64
-	Weight float64
+	Length float64 `bson:"length"`
+	Width  float64 `bson:"width"`
+	Height float64 `bson:"height"`
+	Weight float64 `bson:"weight"`
 }
 
 type Manufacturer struct {
-	Name    string
-	Country string
-	Website string
+	Name    string `bson:"name"`
+	Country string `bson:"country"`
+	Website string `bson:"website"`
 }
 
 type Part struct {
-	UUID          string
-	Name          string
-	Description   string
-	StockQuantity int64
-	Price         float64
-	Category      Category
-	Tags          []string
-	Metadata      map[string]*Value
-	CreatedAt     time.Time
-	UpdatedAt     *time.Time
-	Dimensions    *Dimensions
-	Manufacturer  *Manufacturer
+	UUID          string            `bson:"_id"`
+	Name          string            `bson:"name"`
+	Description   string            `bson:"description"`
+	StockQuantity int64             `bson:"stock_quantity"`
+	Price         float64           `bson:"price"`
+	Category      Category          `bson:"category"`
+	Tags          []string          `bson:"tags,omitempty"`
+	Metadata      map[string]*Value `bson:"metadata,omitempty"`
+	CreatedAt     time.Time         `bson:"created_at"`
+	UpdatedAt     *time.Time        `bson:"updated_at,omitempty"`
+	Dimensions    *Dimensions       `bson:"dimensions,omitempty"`
+	Manufacturer  *Manufacturer     `bson:"manufacturer,omitempty"`
 }
 
 type Value struct {
-	String *string
-	Int64  *int64
-	Double *float64
-	Bool   *bool
+	String *string  `bson:"string,omitempty"`
+	Int64  *int64   `bson:"int64,omitempty"`
+	Double *float64 `bson:"double,omitempty"`
+	Bool   *bool    `bson:"bool,omitempty"`
 }
