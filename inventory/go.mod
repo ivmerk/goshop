@@ -7,6 +7,7 @@ replace github.com/ivmerk/goshop/shared => ../shared
 require (
 	github.com/google/uuid v1.6.0
 	github.com/ivmerk/goshop/shared v0.0.0-00010101000000-000000000000
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.12.1
 	go.mongodb.org/mongo-driver/v2 v2.9.2
 	google.golang.org/grpc v1.84.0

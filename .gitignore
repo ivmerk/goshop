@@ -3,3 +3,4 @@ node_modules
 # Локальные переменные окружения (пароли)
 .env
 !.env.example
+inventory/.env

@@ -12,8 +12,7 @@ type repository struct {
 }
 
 func NewPartRepository(collection *mongo.Collection) *repository {
-	r := &repository{
+	return &repository{
 		collection: collection,
 	}
-	return r
 }
