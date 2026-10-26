@@ -14,9 +14,9 @@ type Part struct {
 	Tags          []string          `bson:"tags"`
 	Metadata      map[string]*Value `bson:"metadata"`
 	CreatedAt     time.Time         `bson:"created_at"`
-	UpdatedAt     *time.Time        `bson:"updated_at"`
-	Dimensions    *Dimensions       `bson:"dimensions"`
-	Manufacturer  *Manufacturer     `bson:"manufacturer"`
+	UpdatedAt     *time.Time        `bson:"updated_at,omitempty"`
+	Dimensions    *Dimensions       `bson:"dimensions,omitempty"`
+	Manufacturer  *Manufacturer     `bson:"manufacturer,omitempty"`
 }
 
 type Dimensions struct {
