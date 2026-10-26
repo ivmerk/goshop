@@ -1,20 +1,22 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type Part struct {
-	UUID          string
-	Name          string
-	Description   string
-	StockQuantity int64
-	Price         float64
-	Category      Category
-	Tags          []string
-	Metadata      map[string]*Value
-	CreatedAt     time.Time
-	UpdatedAt     *time.Time
-	Dimensions    *Dimensions
-	Manufacturer  *Manufacturer
+	UUID          string            `bson:"_id"`
+	Name          string            `bson:"name"`
+	Description   string            `bson:"description"`
+	StockQuantity int64             `bson:"stock_quantity"`
+	Price         float64           `bson:"price"`
+	Category      Category          `bson:"category"`
+	Tags          []string          `bson:"tags"`
+	Metadata      map[string]*Value `bson:"metadata"`
+	CreatedAt     time.Time         `bson:"created_at"`
+	UpdatedAt     *time.Time        `bson:"updated_at"`
+	Dimensions    *Dimensions       `bson:"dimensions"`
+	Manufacturer  *Manufacturer     `bson:"manufacturer"`
 }
 
 type Dimensions struct {
