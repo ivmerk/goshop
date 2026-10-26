@@ -3,10 +3,11 @@ package part
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/ivmerk/goshop/inventory/internal/model"
 	repoConverter "github.com/ivmerk/goshop/inventory/internal/repository/converter"
 	repoModel "github.com/ivmerk/goshop/inventory/internal/repository/model"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func (r *repository) List(ctx context.Context, filter model.PartsFilter) ([]*model.Part, error) {
@@ -14,8 +15,8 @@ func (r *repository) List(ctx context.Context, filter model.PartsFilter) ([]*mod
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = cursor.Close(ctx) }()
 
+	// All читает все документы и сам закрывает курсор
 	var docs []*repoModel.Part
 	if err := cursor.All(ctx, &docs); err != nil {
 		return nil, err

@@ -3,9 +3,10 @@ package part
 import (
 	"context"
 
-	def "github.com/ivmerk/goshop/inventory/internal/repository"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+
+	def "github.com/ivmerk/goshop/inventory/internal/repository"
 )
 
 var _ def.PartRepository = (*repository)(nil)

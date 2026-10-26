@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"google.golang.org/grpc"
@@ -17,7 +18,6 @@ import (
 	partRepo "github.com/ivmerk/goshop/inventory/internal/repository/part"
 	partService "github.com/ivmerk/goshop/inventory/internal/service/part"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
-	"github.com/joho/godotenv"
 )
 
 const grpcPort = "50051"
