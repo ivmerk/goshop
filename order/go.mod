@@ -1,18 +1,6 @@
 module github.com/ivmerk/goshop/order
 
-go 1.27
-
-require (
-	github.com/go-chi/chi/v5 v5.3.2
-	github.com/google/uuid v1.6.0
-	github.com/ivmerk/goshop/shared v0.0.0
-	github.com/jackc/pgx/v5 v5.11.0
-	github.com/joho/godotenv v1.5.1
-	github.com/pashagolub/pgxmock/v5 v5.2.0
-	github.com/pressly/goose/v3 v3.29.0
-	github.com/stretchr/testify v1.12.1
-	google.golang.org/grpc v1.84.0
-)
+go 1.27.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -31,6 +19,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/ogen-go/ogen v1.24.0 // indirect
+	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/shopspring/decimal v1.5.0 // indirect
@@ -54,3 +43,17 @@ require (
 )
 
 replace github.com/ivmerk/goshop/shared => ../shared
+
+require (
+	github.com/go-chi/chi/v5 v5.3.2
+	github.com/google/uuid v1.6.0
+	github.com/ivmerk/goshop/platform v0.0.0
+	github.com/ivmerk/goshop/shared v0.0.0
+	github.com/jackc/pgx/v5 v5.11.0
+	github.com/joho/godotenv v1.5.1
+	github.com/pashagolub/pgxmock/v5 v5.2.0
+	github.com/stretchr/testify v1.12.1
+	google.golang.org/grpc v1.84.0
+)
+
+replace github.com/ivmerk/goshop/platform => ../platform
