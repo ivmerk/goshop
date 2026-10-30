@@ -8,33 +8,31 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
 	inventoryAPI "github.com/ivmerk/goshop/inventory/internal/api/inventory/v1"
+	"github.com/ivmerk/goshop/inventory/internal/config"
 	partRepo "github.com/ivmerk/goshop/inventory/internal/repository/part"
 	partService "github.com/ivmerk/goshop/inventory/internal/service/part"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
-const grpcPort = "50051"
+const configPath = "deploy/compose/inventory/.env"
 
 func main() {
 	ctx := context.Background()
 
-	if err := godotenv.Load("inventory/.env"); err != nil {
-		log.Printf(".env не загружен: %v", err)
-	}
-
-	dbURI := os.Getenv("MONGO_URI")
-	mongoDBName := os.Getenv("MONGO_DB_NAME")
-	if dbURI == "" || mongoDBName == "" {
-		log.Printf("MONGO_URI и MONGO_DB_NAME должны быть заданы (см. inventory/.env.example)")
+	err := config.Load(configPath)
+	if err != nil {
+		log.Printf("failed to load config: %w", err)
 		return
 	}
+
+	dbURI := config.AppConfig().Mongo.URI()
+	mongoDBName := config.AppConfig().Mongo.DatabaseName()
 
 	client, err := mongo.Connect(options.Client().ApplyURI(dbURI))
 	if err != nil {
@@ -68,13 +66,14 @@ func main() {
 
 	reflection.Register(server)
 
-	lis, err := net.Listen("tcp", ":"+grpcPort)
+	grpcAddr := config.AppConfig().GRPC.Address()
+	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
 		log.Printf("failed to listen: %v", err)
 		return
 	}
 	go func() {
-		log.Printf("🚀 gRPC InventoryService запущен на порту %s", grpcPort)
+		log.Printf("🚀 gRPC InventoryService запущен на порту %s", grpcAddr)
 		if err := server.Serve(lis); err != nil {
 			log.Printf("failed to serve: %v", err)
 		}
