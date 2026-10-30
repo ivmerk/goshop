@@ -23,3 +23,8 @@ packages:
   github.com/ivmerk/goshop/payment/internal/service:
     interfaces:
       PaymentService:
+  github.com/ivmerk/goshop/inventory/internal/config:
+    interfaces:
+      LoggerConfig:
+      InventoryGRPCConfig:
+      MongoConfig:

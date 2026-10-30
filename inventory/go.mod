@@ -5,6 +5,7 @@ go 1.27.3
 replace github.com/ivmerk/goshop/shared => ../shared
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
