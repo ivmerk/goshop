@@ -29,12 +29,7 @@ import (
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
-const (
-	httpPort        = "8080"
-	shutdownTimeout = 10 * time.Second
-	inventoryAddr   = "localhost:50051"
-	paymentAddr     = "localhost:50052"
-)
+const shutdownTimeout = 10 * time.Second
 
 func closeConn(conn *grpc.ClientConn) {
 	if err := conn.Close(); err != nil {
