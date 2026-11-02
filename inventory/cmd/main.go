@@ -10,6 +10,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/ivmerk/goshop/inventory/internal/config"
 	partRepo "github.com/ivmerk/goshop/inventory/internal/repository/part"
 	partService "github.com/ivmerk/goshop/inventory/internal/service/part"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
@@ -31,30 +33,42 @@ func main() {
 		return
 	}
 
-	dbURI := config.AppConfig().Mongo.URI()
-	mongoDBName := config.AppConfig().Mongo.DatabaseName()
+	cfg := config.AppConfig()
+
+	if err := logger.Init(cfg.Logger.Level(), cfg.Logger.AsJson()); err != nil {
+		log.Printf("failed to init logger: %v", err)
+		return
+	}
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("failed to sync logger: %v", err)
+		}
+	}()
+
+	dbURI := cfg.Mongo.URI()
+	mongoDBName := cfg.Mongo.DatabaseName()
 
 	client, err := mongo.Connect(options.Client().ApplyURI(dbURI))
 	if err != nil {
-		log.Printf("ошибка подключения к mongo: %v", err)
+		logger.Error(ctx, "ошибка подключения к mongo:", zap.Error(err))
 		return
 	}
 
 	defer func() {
 		if err := client.Disconnect(ctx); err != nil {
-			log.Printf("ошибка отключения от mongo: %v", err)
+			logger.Error(ctx, "ошибка отключения от mongo:", zap.Error(err))
 		}
 	}()
 
 	if err := client.Ping(ctx, nil); err != nil {
-		log.Printf("база данных недоступна: %v", err)
+		logger.Error(ctx, "база данных недоступна:", zap.Error(err))
 		return
 	}
 	collection := client.Database(mongoDBName).Collection("parts")
 
 	repo := partRepo.NewPartRepository(collection)
 	if err := repo.Seed(ctx); err != nil {
-		log.Printf("не удалось заполнить коллекцию: %v", err)
+		logger.Error(ctx, "не удалось заполнить коллекцию:", zap.Error(err))
 		return
 	}
 
@@ -66,16 +80,16 @@ func main() {
 
 	reflection.Register(server)
 
-	grpcAddr := config.AppConfig().GRPC.Address()
+	grpcAddr := cfg.GRPC.Address()
 	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		log.Printf("failed to listen: %v", err)
+		logger.Error(ctx, "ошибка создания tcp-сокета:", zap.Error(err))
 		return
 	}
 	go func() {
-		log.Printf("🚀 gRPC InventoryService запущен на порту %s", grpcAddr)
+		logger.Info(ctx, "🚀 gRPC InventoryService запущен", zap.String("grpcAddr", grpcAddr))
 		if err := server.Serve(lis); err != nil {
-			log.Printf("failed to serve: %v", err)
+			logger.Error(ctx, "ошибка запуска gRPC-сервера:", zap.Error(err))
 		}
 	}()
 
@@ -83,7 +97,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Завершение работы gRPC-сервера...")
+	logger.Info(ctx, "🛑 Завершение работы gRPC-сервера...")
 	server.GracefulStop()
-	log.Println("✅ Сервер остановлен")
+	logger.Info(ctx, "✅ Сервер остановлен")
 }

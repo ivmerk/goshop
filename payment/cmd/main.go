@@ -41,7 +41,7 @@ func main() {
 	reflection.Register(server)
 
 	go func() {
-		log.Printf("🚀 gRPC PaymentService запущен на порту %s", grpcAddr)
+		log.Printf("🚀 gRPC PaymentService запущен на %s", grpcAddr)
 		if err := server.Serve(lis); err != nil {
 			log.Printf("failed to serve: %v", err)
 		}

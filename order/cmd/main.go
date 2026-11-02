@@ -122,7 +122,7 @@ func main() {
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", cfg.OrderHTTP.Address())
+		log.Printf("🚀 HTTP-сервер запущен на %s\n", cfg.OrderHTTP.Address())
 		err := server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("❌ Ошибка запуска сервера: %v\n", err)
