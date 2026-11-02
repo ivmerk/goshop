@@ -28,3 +28,11 @@ packages:
       LoggerConfig:
       InventoryGRPCConfig:
       MongoConfig:
+  github.com/ivmerk/goshop/order/internal/config:
+    interfaces:
+      LoggerConfig:
+      InventoryGRPCConfig:
+      OrderHTTPConfig:
+      PaymentGRPCConfig:
+      PostgresConfig:
+

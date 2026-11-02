@@ -27,7 +27,7 @@ func main() {
 
 	err := config.Load(configPath)
 	if err != nil {
-		log.Printf("failed to load config: %w", err)
+		log.Printf("failed to load config: %v", err)
 		return
 	}
 
