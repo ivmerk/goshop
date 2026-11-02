@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -23,6 +24,7 @@ import (
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
 	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
 	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 	"github.com/ivmerk/goshop/platform/pkg/migrator"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
@@ -48,16 +50,26 @@ func main() {
 
 	cfg := config.AppConfig()
 
+	if err := logger.Init(cfg.Logger.Level(), cfg.Logger.AsJson()); err != nil {
+		log.Printf("failed to init logger: %v", err)
+		return
+	}
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("failed to sync logger: %v", err)
+		}
+	}()
+
 	// Создаем соединение с базой данных
 	pool, err := pgxpool.New(ctx, cfg.Postgres.URI())
 	if err != nil {
-		log.Printf("failed to connect to database: %v\n", err)
+		logger.Error(ctx, "failed to connect to database", zap.Error(err))
 		return
 	}
 	defer pool.Close()
 
 	if err := pool.Ping(ctx); err != nil {
-		log.Printf("база данных недоступна: %v", err)
+		logger.Error(ctx, "failed to ping database", zap.Error(err))
 		return
 	}
 
@@ -67,20 +79,20 @@ func main() {
 
 	err = migratorRunner.Up()
 	if err != nil {
-		log.Printf("Ошибка миграции базы данных: %v\n", err)
+		logger.Error(ctx, "failed to migrate database", zap.Error(err))
 		return
 	}
 
 	inventoryConn, err := grpc.NewClient(cfg.InventoryGRPC.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Printf("ошибка подключения к inventory: %v", err)
+		logger.Error(ctx, "failed to connect to inventory", zap.Error(err))
 		return
 	}
 	defer closeConn(inventoryConn)
 
 	paymentConn, err := grpc.NewClient(cfg.PaymentGRPC.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Printf("ошибка подключения к payment: %v", err)
+		logger.Error(ctx, "failed to connect to payment", zap.Error(err))
 		return
 	}
 	defer closeConn(paymentConn)
@@ -97,7 +109,7 @@ func main() {
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
 	if err != nil {
-		log.Printf("ошибка создания сервера OpenAPI: %v", err)
+		logger.Error(ctx, "failed to create OpenAPI server", zap.Error(err))
 		return
 	}
 
@@ -122,10 +134,10 @@ func main() {
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("🚀 HTTP-сервер запущен на %s\n", cfg.OrderHTTP.Address())
+		logger.Info(ctx, "starting HTTP server", zap.String("address", cfg.OrderHTTP.Address()))
 		err := server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("❌ Ошибка запуска сервера: %v\n", err)
+			logger.Error(ctx, "failed to start HTTP server", zap.Error(err))
 		}
 	}()
 
@@ -134,7 +146,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Завершение работы сервера...")
+	logger.Info(ctx, "shutting down HTTP server")
 
 	// Создаем контекст с таймаутом для остановки сервера
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
@@ -142,8 +154,8 @@ func main() {
 
 	err = server.Shutdown(shutdownCtx)
 	if err != nil {
-		log.Printf("❌ Ошибка при остановке сервера: %v\n", err)
+		logger.Error(ctx, "failed to shutdown HTTP server", zap.Error(err))
 	}
 
-	log.Println("✅ Сервер остановлен")
+	logger.Info(ctx, "graceful shutdown complete")
 }
