@@ -11,16 +11,25 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	paymentAPI "github.com/ivmerk/goshop/payment/internal/api/payment/v1"
+	"github.com/ivmerk/goshop/payment/internal/config"
 	paymentSvc "github.com/ivmerk/goshop/payment/internal/service/payment"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
-const grpcPort = "50052"
+const configPath = "deploy/compose/payment/.env"
 
 func main() {
-	lis, err := net.Listen("tcp", ":"+grpcPort)
+	err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Printf("failed to load config: %v", err)
+		return
+	}
+
+	grpcAddr := config.AppConfig().GRPC.Address()
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		log.Printf("failed to listen: %v", err)
+		return
 	}
 
 	svc := paymentSvc.NewService()
@@ -32,7 +41,7 @@ func main() {
 	reflection.Register(server)
 
 	go func() {
-		log.Printf("🚀 gRPC PaymentService запущен на порту %s", grpcPort)
+		log.Printf("🚀 gRPC PaymentService запущен на порту %s", grpcAddr)
 		if err := server.Serve(lis); err != nil {
 			log.Printf("failed to serve: %v", err)
 		}

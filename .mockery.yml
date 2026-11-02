@@ -35,4 +35,7 @@ packages:
       OrderHTTPConfig:
       PaymentGRPCConfig:
       PostgresConfig:
-
+  github.com/ivmerk/goshop/payment/internal/config:
+    interfaces:
+      LoggerConfig:
+      PaymentGRPCConfig:

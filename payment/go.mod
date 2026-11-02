@@ -15,8 +15,10 @@ require (
 replace github.com/ivmerk/goshop/shared => ../shared
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/google/uuid v1.6.0
 	github.com/ivmerk/goshop/shared v0.0.0
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.84.0
 )
