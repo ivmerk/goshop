@@ -1,34 +1,51 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
 	paymentAPI "github.com/ivmerk/goshop/payment/internal/api/payment/v1"
 	"github.com/ivmerk/goshop/payment/internal/config"
 	paymentSvc "github.com/ivmerk/goshop/payment/internal/service/payment"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
 const configPath = "deploy/compose/payment/.env"
 
 func main() {
+	ctx := context.Background()
+
 	err := config.Load(configPath)
 	if err != nil {
 		log.Printf("failed to load config: %v", err)
 		return
 	}
 
-	grpcAddr := config.AppConfig().GRPC.Address()
+	cfg := config.AppConfig()
+
+	if err := logger.Init(cfg.Logger.Level(), cfg.Logger.AsJson()); err != nil {
+		log.Printf("failed to init logger: %v", err)
+		return
+	}
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("failed to sync logger: %v", err)
+		}
+	}()
+
+	grpcAddr := cfg.GRPC.Address()
 	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		log.Printf("failed to listen: %v", err)
+		logger.Error(ctx, "failed to listen", zap.Error(err))
 		return
 	}
 
@@ -41,9 +58,9 @@ func main() {
 	reflection.Register(server)
 
 	go func() {
-		log.Printf("🚀 gRPC PaymentService запущен на %s", grpcAddr)
+		logger.Info(ctx, "🚀 gRPC PaymentService started", zap.String("address", grpcAddr))
 		if err := server.Serve(lis); err != nil {
-			log.Printf("failed to serve: %v", err)
+			logger.Error(ctx, "failed to serve", zap.Error(err))
 		}
 	}()
 
@@ -51,7 +68,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Завершение работы gRPC-сервера...")
+	logger.Info(ctx, "👋 gRPC PaymentService stopping")
 	server.GracefulStop()
-	log.Println("✅ Сервер остановлен")
+	logger.Info(ctx, "👋 gRPC PaymentService stopped")
 }
