@@ -3,72 +3,48 @@ package main
 import (
 	"context"
 	"log"
-	"net"
-	"os"
-	"os/signal"
 	"syscall"
+	"time"
 
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-
-	paymentAPI "github.com/ivmerk/goshop/payment/internal/api/payment/v1"
+	"github.com/ivmerk/goshop/payment/internal/app"
 	"github.com/ivmerk/goshop/payment/internal/config"
-	paymentSvc "github.com/ivmerk/goshop/payment/internal/service/payment"
-	"github.com/ivmerk/goshop/platform/pkg/logger"
-	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
+	"github.com/ivmerk/goshop/platform/pkg/closer"
 )
 
-const configPath = "deploy/compose/payment/.env"
+const (
+	configPath      = "deploy/compose/payment/.env"
+	shutdownTimeout = 10 * time.Second
+)
 
 func main() {
-	ctx := context.Background()
-
-	err := config.Load(configPath)
-	if err != nil {
+	if err := config.Load(configPath); err != nil {
 		log.Printf("failed to load config: %v", err)
 		return
 	}
 
-	cfg := config.AppConfig()
+	ctx := context.Background()
 
-	if err := logger.Init(cfg.Logger.Level(), cfg.Logger.AsJson()); err != nil {
-		log.Printf("failed to init logger: %v", err)
-		return
-	}
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			log.Printf("failed to sync logger: %v", err)
-		}
-	}()
-
-	grpcAddr := cfg.GRPC.Address()
-	lis, err := net.Listen("tcp", grpcAddr)
+	a, err := app.New(ctx)
 	if err != nil {
-		logger.Error(ctx, "failed to listen", zap.Error(err))
+		log.Printf("failed to create app: %v", err)
+		closeAll()
 		return
 	}
 
-	svc := paymentSvc.NewService()
-	api := paymentAPI.NewPaymentAPI(svc)
-	server := grpc.NewServer()
-	paymentV1.RegisterPaymentServiceServer(server, api)
+	closer.Configure(syscall.SIGINT, syscall.SIGTERM)
 
-	// Позволяет grpcurl видеть список сервисов без .proto-файла.
-	reflection.Register(server)
+	if err := a.Run(ctx); err != nil {
+		log.Printf("app stopped with error: %v", err)
+	}
 
-	go func() {
-		logger.Info(ctx, "🚀 gRPC PaymentService started", zap.String("address", grpcAddr))
-		if err := server.Serve(lis); err != nil {
-			logger.Error(ctx, "failed to serve", zap.Error(err))
-		}
-	}()
+	closeAll()
+}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+func closeAll() {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
 
-	logger.Info(ctx, "👋 gRPC PaymentService stopping")
-	server.GracefulStop()
-	logger.Info(ctx, "👋 gRPC PaymentService stopped")
+	if err := closer.CloseAll(ctx); err != nil {
+		log.Printf("failed to close resources: %v", err)
+	}
 }
