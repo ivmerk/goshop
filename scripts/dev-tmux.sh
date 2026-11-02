@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Запускает inventory, payment, order и свободную оболочку в одном окне tmux.
+# Запускает nvim, inventory, order, payment и lazygit в одном окне tmux.
 # Использование: scripts/dev-tmux.sh [start|stop]
 set -euo pipefail
 
@@ -26,23 +26,26 @@ tmux new-session -d -s "$SESSION" -c "$ROOT" -n services
 tmux set-option -t "$SESSION" -g mouse on
 tmux set-option -t "$SESSION" pane-border-status top
 
-# 2x2: inventory | payment
-#      order     | shell
-tmux split-window -h -t "$SESSION:services.0" -c "$ROOT"
-tmux split-window -v -t "$SESSION:services.0" -c "$ROOT"
-tmux split-window -v -t "$SESSION:services.2" -c "$ROOT"
+# Слева (50% ширины): nvim на всю высоту.
+# Справа (50%), сверху вниз: inventory, order, payment, lazygit.
+NVIM=$(tmux display-message -p -t "$SESSION:services.0" '#{pane_id}')
+INVENTORY=$(tmux split-window -h -p 50 -t "$NVIM" -c "$ROOT" -P -F '#{pane_id}')
+LAZYGIT=$(tmux split-window -v -p 25 -t "$INVENTORY" -c "$ROOT" -P -F '#{pane_id}')
+PAYMENT=$(tmux split-window -v -p 33 -t "$INVENTORY" -c "$ROOT" -P -F '#{pane_id}')
+ORDER=$(tmux split-window -v -p 50 -t "$INVENTORY" -c "$ROOT" -P -F '#{pane_id}')
 
-# Порядок панелей: 0 inventory, 1 order, 2 payment, 3 shell
-tmux select-pane -t "$SESSION:services.0" -T inventory
-tmux select-pane -t "$SESSION:services.1" -T order
-tmux select-pane -t "$SESSION:services.2" -T payment
-tmux select-pane -t "$SESSION:services.3" -T shell
+tmux select-pane -t "$NVIM" -T nvim
+tmux select-pane -t "$INVENTORY" -T inventory
+tmux select-pane -t "$ORDER" -T order
+tmux select-pane -t "$PAYMENT" -T payment
+tmux select-pane -t "$LAZYGIT" -T lazygit
 
-tmux send-keys -t "$SESSION:services.0" "go run ./inventory/cmd" C-m
-tmux send-keys -t "$SESSION:services.2" "go run ./payment/cmd" C-m
+tmux send-keys -t "$NVIM" "nvim ." C-m
+tmux send-keys -t "$INVENTORY" "go run ./inventory/cmd" C-m
+tmux send-keys -t "$PAYMENT" "go run ./payment/cmd" C-m
 # order ходит в inventory и payment по gRPC при старте — даём им подняться
-tmux send-keys -t "$SESSION:services.1" "sleep 3 && go run ./order/cmd" C-m
-tmux send-keys -t "$SESSION:services.3" "# task test-api — проверка API; scripts/dev-tmux.sh stop — остановить всё" C-m
+tmux send-keys -t "$ORDER" "sleep 3 && go run ./order/cmd" C-m
+tmux send-keys -t "$LAZYGIT" "lazygit" C-m
 
-tmux select-pane -t "$SESSION:services.3"
+tmux select-pane -t "$NVIM"
 exec tmux attach -t "$SESSION"
