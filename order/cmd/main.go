@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,12 +14,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderAPI "github.com/ivmerk/goshop/order/internal/api/order/v1"
 	grpcClient "github.com/ivmerk/goshop/order/internal/client/grpc"
+	"github.com/ivmerk/goshop/order/internal/config"
 	customMiddleware "github.com/ivmerk/goshop/order/internal/middleware"
 	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
 	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
@@ -31,12 +30,10 @@ import (
 )
 
 const (
-	httpPort             = "8080"
-	readHeaderTimeout    = 5 * time.Second
-	shutdownTimeout      = 10 * time.Second
-	defaultMigrationsDir = "order/migrations"
-	inventoryAddr        = "localhost:50051"
-	paymentAddr          = "localhost:50052"
+	httpPort        = "8080"
+	shutdownTimeout = 10 * time.Second
+	inventoryAddr   = "localhost:50051"
+	paymentAddr     = "localhost:50052"
 )
 
 func closeConn(conn *grpc.ClientConn) {
@@ -48,18 +45,16 @@ func closeConn(conn *grpc.ClientConn) {
 func main() {
 	ctx := context.Background()
 
-	if err := godotenv.Load("order/.env"); err != nil {
-		log.Printf(".env не загружен: %v", err)
-	}
-
-	dbURI := os.Getenv("DB_URI")
-	if dbURI == "" {
-		log.Printf("переменная окружения DB_URI не задана (см. order/.env.example)")
+	const configPath = "deploy/compose/order/.env"
+	if err := config.Load(configPath); err != nil {
+		log.Printf("ошибка загрузки конфигурации: %v", err)
 		return
 	}
 
+	cfg := config.AppConfig()
+
 	// Создаем соединение с базой данных
-	pool, err := pgxpool.New(ctx, dbURI)
+	pool, err := pgxpool.New(ctx, cfg.Postgres.URI())
 	if err != nil {
 		log.Printf("failed to connect to database: %v\n", err)
 		return
@@ -72,12 +67,8 @@ func main() {
 	}
 
 	// Инициализируем мигратор
-	migrationsDir := os.Getenv("MIGRATIONS_DIR")
-	if migrationsDir == "" {
-		migrationsDir = defaultMigrationsDir
-	}
 	db := stdlib.OpenDBFromPool(pool)
-	migratorRunner := migrator.NewMigrator(db, migrationsDir)
+	migratorRunner := migrator.NewMigrator(db, cfg.Postgres.MigrationsDir())
 
 	err = migratorRunner.Up()
 	if err != nil {
@@ -85,14 +76,14 @@ func main() {
 		return
 	}
 
-	inventoryConn, err := grpc.NewClient(inventoryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	inventoryConn, err := grpc.NewClient(cfg.InventoryGRPC.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("ошибка подключения к inventory: %v", err)
 		return
 	}
 	defer closeConn(inventoryConn)
 
-	paymentConn, err := grpc.NewClient(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	paymentConn, err := grpc.NewClient(cfg.PaymentGRPC.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("ошибка подключения к payment: %v", err)
 		return
@@ -129,18 +120,15 @@ func main() {
 
 	// Запускаем HTTP-сервер
 	server := &http.Server{
-		Addr:              net.JoinHostPort("localhost", httpPort),
+		Addr:              cfg.OrderHTTP.Address(),
 		Handler:           r,
-		ReadHeaderTimeout: readHeaderTimeout, // Защита от Slowloris атак - тип DDoS-атаки, при которой
-		// атакующий умышленно медленно отправляет HTTP-заголовки, удерживая соединения открытыми и истощая
-		// пул доступных соединений на сервере. ReadHeaderTimeout принудительно закрывает соединение,
-		// если клиент не успел отправить все заголовки за отведенное время.
+		ReadHeaderTimeout: cfg.OrderHTTP.ReadTimeout(),
 	}
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", httpPort)
-		err = server.ListenAndServe()
+		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", cfg.OrderHTTP.Address())
+		err := server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("❌ Ошибка запуска сервера: %v\n", err)
 		}
@@ -154,10 +142,10 @@ func main() {
 	log.Println("🛑 Завершение работы сервера...")
 
 	// Создаем контекст с таймаутом для остановки сервера
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	err = server.Shutdown(ctx)
+	err = server.Shutdown(shutdownCtx)
 	if err != nil {
 		log.Printf("❌ Ошибка при остановке сервера: %v\n", err)
 	}
