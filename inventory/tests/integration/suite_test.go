@@ -32,9 +32,6 @@ func (s *InventorySuite) SetupSuite() {
 	// platform/testcontainers пишет через глобальный логгер при ошибках
 	s.Require().NoError(logger.Init("info", false))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // первая сборка образа долгая
-	defer cancel()
-
 	env, err := setupTestEnvironment(context.Background())
 	s.Require().NoError(err)
 	s.env = env
