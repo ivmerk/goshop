@@ -1,0 +1,44 @@
+name: Run Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      modules:
+        required: true
+        type: string
+      go-version:
+        required: true
+        type: string
+
+jobs:
+  integration-test:
+    name: Run integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🛠 Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: false
+
+      - name: 📌 Install Task
+        uses: arduino/setup-task@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📄 Generate .env files
+        run: task env:generate
+
+      - name: 🧪 Run integration tests via Taskfile
+        env:
+          MODULES: ${{ inputs.modules }}
+        run: task test-integration
+
+      - name: 🧹 Cleanup Docker containers
+        if: always()
+        run: docker container prune -f
+
