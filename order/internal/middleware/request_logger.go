@@ -1,19 +1,23 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 )
 
 // RequestLogger создает middleware для логирования времени выполнения запросов
 func RequestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Засекаем время начала обработки запроса
+		ctx := r.Context()
 		startTime := time.Now()
 
 		// Логируем начало запроса
-		log.Printf("⏱️ Начало запроса: %q %q", r.Method, r.URL.Path) //nolint:gosec // значения экранированы через %q
+		logger.Info(ctx, "request started", zap.String("method", r.Method), zap.String("path", r.URL.Path))
 
 		// Передаем управление следующему обработчику
 		next.ServeHTTP(w, r)
@@ -22,6 +26,6 @@ func RequestLogger(next http.Handler) http.Handler {
 		duration := time.Since(startTime)
 
 		// Логируем окончание запроса с временем выполнения
-		log.Printf("✅ Запрос завершен: %q %q, время выполнения: %v", r.Method, r.URL.Path, duration) //nolint:gosec // значения экранированы через %q
+		logger.Info(ctx, "request finished", zap.String("method", r.Method), zap.String("path", r.URL.Path), zap.String("duration", duration.String()))
 	})
 }
