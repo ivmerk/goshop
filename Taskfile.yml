@@ -681,13 +681,12 @@ tasks:
             # Проверяем наличие файлов с тегом integration
             HAS_TESTS=$(grep -r "//go:build integration" $mod --include="*.go" | wc -l)
             
-            if [ "$HAS_TESTS" -eq 0 ]; then
-              echo "⚠️ Модуль $mod не содержит интеграционных тестов (с тегом integration), пропускаем"
-              continue
-            fi
-            
+          if [ "$HAS_TESTS" -eq 0 ]; then
+            echo "⚠️ ... пропускаем"
+          else
             echo "▶️ Запуск интеграционных тестов для $mod"
             go test -v -tags=integration ./$mod/... || ERR=1
           fi
+        fi
         done
         exit $ERR
