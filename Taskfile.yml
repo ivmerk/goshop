@@ -682,7 +682,7 @@ tasks:
             HAS_TESTS=$(grep -r "//go:build integration" $mod --include="*.go" | wc -l)
             
           if [ "$HAS_TESTS" -eq 0 ]; then
-            echo "⚠️ ... пропускаем"
+            echo "⚠️ Модуль $mod не содержит интеграционных тестов (с тегом integration), пропускаем"
           else
             echo "▶️ Запуск интеграционных тестов для $mod"
             go test -v -tags=integration ./$mod/... || ERR=1
