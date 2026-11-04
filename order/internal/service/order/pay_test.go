@@ -26,6 +26,13 @@ func (s *ServiceSuite) TestPaySuccess() {
 		Status:      model.OrderStatusPaid,
 		Payment:     model.PaymentMethodCard,
 	}).Return(orderUUID, nil)
+	s.orderProducer.On("ProduceOrderPaid", s.ctx, mock.MatchedBy(func(e model.OrderPaidEvent) bool {
+		return e.OrderUUID == orderUUID &&
+			e.UserUUID == userUUID &&
+			e.TransactionUUID == txUUID &&
+			e.PaymentMethod == string(model.PaymentMethodCard) &&
+			e.EventUUID != ""
+	})).Return(nil)
 
 	got, err := s.service.Pay(s.ctx, orderUUID, model.PaymentMethodCard)
 
@@ -86,4 +93,22 @@ func (s *ServiceSuite) TestPayUpdateError() {
 	_, err := s.service.Pay(s.ctx, orderUUID, model.PaymentMethodSbp)
 
 	s.Require().ErrorIs(err, updateErr)
+}
+
+func (s *ServiceSuite) TestPayProducerErrorDoesNotFailPayment() {
+	tx := txUUID
+	s.orderRepository.On("Get", s.ctx, orderUUID).Return(s.pendingOrder(), nil)
+	s.paymentClient.On("PayOrder", s.ctx, orderUUID, userUUID, model.PaymentMethodCard).
+		Return(txUUID, nil)
+	s.orderRepository.On("Update", s.ctx, orderUUID, &model.OrderUpdateInfo{
+		Transaction: &tx,
+		Status:      model.OrderStatusPaid,
+		Payment:     model.PaymentMethodCard,
+	}).Return(orderUUID, nil)
+	s.orderProducer.On("ProduceOrderPaid", s.ctx, mock.Anything).Return(errors.New("kafka down"))
+
+	got, err := s.service.Pay(s.ctx, orderUUID, model.PaymentMethodCard)
+
+	s.Require().NoError(err)
+	s.Require().Equal(txUUID, got)
 }

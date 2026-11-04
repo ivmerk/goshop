@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package events.v1;
+
+option go_package = "github.com/ivmerk/goshop/shared/pkg/proto/events/v1;events_v1";
+
+// OrderPaid публикуется Order после успешной оплаты (топик order.paid).
+message OrderPaid {
+  string event_uuid = 1;       // для идемпотентности
+  string order_uuid = 2;
+  string user_uuid = 3;
+  string payment_method = 4;   // строкой, значение из PaymentMethod
+  string transaction_uuid = 5;
+}
+
+// ShipAssembled публикуется Assembly после сборки (топик order.assembled).
+message ShipAssembled {
+  string event_uuid = 1;
+  string order_uuid = 2;
+  string user_uuid = 3;
+  int64 build_time_sec = 4;
+}
+

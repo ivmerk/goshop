@@ -3,14 +3,18 @@ package order
 import (
 	"context"
 
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+
 	"github.com/ivmerk/goshop/order/internal/model"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 )
 
-func (s *service) Pay(ctx context.Context, uuid string, method model.PaymentMethod) (string, error) {
+func (s *service) Pay(ctx context.Context, orderUUID string, method model.PaymentMethod) (string, error) {
 	if method == model.PaymentMethodUnknown {
 		return "", model.ErrInvalidPaymentMethod
 	}
-	order, err := s.orderRepository.Get(ctx, uuid)
+	order, err := s.orderRepository.Get(ctx, orderUUID)
 	if err != nil {
 		return "", err
 	}
@@ -23,8 +27,20 @@ func (s *service) Pay(ctx context.Context, uuid string, method model.PaymentMeth
 		return "", err
 	}
 
-	_, err = s.orderRepository.Update(ctx, uuid, &model.OrderUpdateInfo{
+	if _, err = s.orderRepository.Update(ctx, orderUUID, &model.OrderUpdateInfo{
 		Transaction: &txID, Status: model.OrderStatusPaid, Payment: method,
-	})
-	return txID, err
+	}); err != nil {
+		return "", err
+	}
+
+	if err := s.orderProducer.ProduceOrderPaid(ctx, model.OrderPaidEvent{
+		EventUUID:       uuid.NewString(),
+		OrderUUID:       order.UUID,
+		UserUUID:        order.User,
+		PaymentMethod:   string(method),
+		TransactionUUID: txID,
+	}); err != nil {
+		logger.Error(ctx, "failed to publish OrderPaid", zap.Error(err), zap.String("order_uuid", order.UUID))
+	}
+	return txID, nil
 }

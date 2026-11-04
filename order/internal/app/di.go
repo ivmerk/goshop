@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,7 +15,10 @@ import (
 	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
 	"github.com/ivmerk/goshop/order/internal/service"
 	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
+	orderProducerSvc "github.com/ivmerk/goshop/order/internal/service/producer/order_producer"
 	"github.com/ivmerk/goshop/platform/pkg/closer"
+	"github.com/ivmerk/goshop/platform/pkg/kafka/producer"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
@@ -28,6 +32,9 @@ type diContainer struct {
 
 	inventoryClient grpcClient.InventoryClient
 	paymentClient   grpcClient.PaymentClient
+
+	syncProducer  sarama.SyncProducer
+	orderProducer service.OrderProducerService
 
 	pgPool *pgxpool.Pool
 }
@@ -74,7 +81,11 @@ func (d *diContainer) OrderService(ctx context.Context) (service.OrderService, e
 		if err != nil {
 			return nil, err
 		}
-		d.orderSvc = orderSvc.NewService(repo, inv, pay)
+		prod, err := d.OrderProducer()
+		if err != nil {
+			return nil, err
+		}
+		d.orderSvc = orderSvc.NewService(repo, inv, pay, prod)
 	}
 	return d.orderSvc, nil
 }
@@ -133,4 +144,31 @@ func (d *diContainer) PostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		d.pgPool = pool
 	}
 	return d.pgPool, nil
+}
+
+func (d *diContainer) SyncProducer() (sarama.SyncProducer, error) {
+	if d.syncProducer == nil {
+		p, err := sarama.NewSyncProducer(
+			config.AppConfig().Kafka.Brokers(),
+			config.AppConfig().OrderPaidProducer.Config(),
+		)
+		if err != nil {
+			return nil, err
+		}
+		closer.AddNamed("Kafka sync producer", func(context.Context) error { return p.Close() })
+		d.syncProducer = p
+	}
+	return d.syncProducer, nil
+}
+
+func (d *diContainer) OrderProducer() (service.OrderProducerService, error) {
+	if d.orderProducer == nil {
+		sp, err := d.SyncProducer()
+		if err != nil {
+			return nil, err
+		}
+		kp := producer.NewProducer(sp, config.AppConfig().OrderPaidProducer.Topic(), logger.Logger())
+		d.orderProducer = orderProducerSvc.NewService(kp)
+	}
+	return d.orderProducer, nil
 }

@@ -8,6 +8,8 @@ import (
 
 	grpcMocks "github.com/ivmerk/goshop/order/internal/client/grpc/mocks"
 	repoMocks "github.com/ivmerk/goshop/order/internal/repository/mocks"
+	serviceMocks "github.com/ivmerk/goshop/order/internal/service/mocks"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 )
 
 const (
@@ -25,6 +27,7 @@ type ServiceSuite struct {
 	orderRepository *repoMocks.OrderRepository
 	inventoryClient *grpcMocks.InventoryClient
 	paymentClient   *grpcMocks.PaymentClient
+	orderProducer   *serviceMocks.OrderProducerService
 	service         *service
 }
 
@@ -33,9 +36,14 @@ func (s *ServiceSuite) SetupTest() {
 	s.orderRepository = repoMocks.NewOrderRepository(s.T())
 	s.inventoryClient = grpcMocks.NewInventoryClient(s.T())
 	s.paymentClient = grpcMocks.NewPaymentClient(s.T())
-	s.service = NewService(s.orderRepository, s.inventoryClient, s.paymentClient)
+	s.orderProducer = serviceMocks.NewOrderProducerService(s.T())
+	s.service = NewService(s.orderRepository, s.inventoryClient, s.paymentClient, s.orderProducer)
 }
 
 func TestServiceSuite(t *testing.T) {
 	suite.Run(t, new(ServiceSuite))
+}
+
+func (s *ServiceSuite) SetupSuite() {
+	logger.SetNopLogger()
 }
