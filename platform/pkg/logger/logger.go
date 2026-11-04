@@ -2,9 +2,11 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -108,11 +110,16 @@ func SetNopLogger() {
 
 // Sync сбрасывает буферы логгера
 func Sync() error {
-	if globalLogger != nil {
-		return globalLogger.zapLogger.Sync()
+	if globalLogger == nil {
+		return nil
 	}
 
-	return nil
+	err := globalLogger.zapLogger.Sync()
+	if errors.Is(err, syscall.ENOTTY) || errors.Is(err, syscall.EINVAL) {
+		return nil
+	}
+
+	return err
 }
 
 // With создает новый enrich-aware логгер с дополнительными полями

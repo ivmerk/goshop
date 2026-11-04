@@ -98,7 +98,7 @@ func (c *Closer) handleSignals(signals ...os.Signal) {
 		defer shutdownCancel()
 
 		if err := c.CloseAll(shutdownCtx); err != nil {
-			c.logger.Error(context.Background(), "❌ Ошибка при закрытии ресурсов: %v", zap.Error(err))
+			c.logger.Error(context.Background(), "❌ Ошибка при закрытии ресурсов:", zap.Error(err))
 		}
 
 	case <-c.done:

@@ -1,62 +1,91 @@
-# 🧱 Домашнее задание — Неделя 4
+# 🧱 Домашнее задание — Неделя 5
 **Курс: «Микросервисы, как в BigTech 2.0»**
 
 ---
 
 ## 📌 Задание
 
-На этой неделе вам предстоит добавить интеграционные тесты и улучшить инфраструктуру для автоматизации работы с окружением. Вы будете использовать Testcontainers для написания тестов с реальными базами данных и настроите переменные окружения для гибкой конфигурации сервисов.
+На этой неделе вы начинаете работу с асинхронной коммуникацией между сервисами с помощью Apache Kafka. Вам нужно развернуть брокеры Kafka и реализовать взаимодействие между `OrderService` и новым `AssemblyService` через события.
 
 ### ✅ Что нужно сделать:
 
-1. Добавить **интеграционные тесты** с использованием Testcontainers:
-   - Написать **хотя бы один интеграционный тест для `OrderService`**, проверяющий работу репозиторий-слоя с PostgreSQL в контейнере
-   - Написать **хотя бы один e2e-тест для `InventoryService`**, тестирующий API как черный ящик с MongoDB в контейнере с помощью testcontainers
-   - Организовать запуск тестов с тегом `integration`
+1. Поднять Kafka в KRaft-режиме с одним брокером:
+    - Разместить конфигурацию в deploy/compose/core/docker-compose.yml 
+    - Использовать официальный образ Kafka без ZooKeeper (KRaft)
 
-2. Настроить управление **переменными окружения**:
-   - Создать шаблоны `.env` файлов для всех сервисов
-   - Реализовать автоматическую генерацию конфигурации из шаблонов
-   - Добавить поддержку загрузки переменных окружения в сервисы
-   - Организовать структуру `internal/config` с интерфейсами и моками для конфигураций
+2. Создать AssemblyService:
+    - Оформлен в том же стиле: cmd/, internal/, слои api, service, di, config 
+    - Поддержка .env, конфигов, DI 
+    - Kafka Consumer: слушает событие OrderPaid, после получения — ждёт 10 секунд 
+    - Kafka Producer: отправляет событие ShipAssembled после задержки
 
-3. Улучшить **Docker Compose** конфигурации:
-   - Обновить конфигурации, чтобы использовать переменные окружения
+3. В `AssemblyService`:
+    - Реализовать **Kafka Consumer**, который обрабатывает событие об оплате заказа (`OrderPaid`)
+        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
+        - Логика: при получении события — подождать 10 секунд
+    - Реализовать **Kafka Producer**, который отправляет событие об успешной сборке (`ShipAssembled`) после задержки
+        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
 
-4. Реализовать **платформенную библиотеку** (`/platform`):
-   - Обёртка над логгером (на базе `go.uber.org/zap`)
-   - Компоненты для работы с миграциями
-   - Компоненты для проверки состояния сервиса (health check)
-   - Интегрировать её в `OrderService`, `InventoryService`, `PaymentService`
+4. В `OrderService`:
+    - Реализовать **Kafka Producer**, который отправляет событие `OrderPaid` после успешной оплаты
+        - Контракт описан в [`contracts/order_service_contracts.md`](contracts/order_service_contracts.md)
+    - Реализовать **Kafka Consumer**, который обрабатывает событие `ShipAssembled` и обновляет статус заказа на `COMPLETED`
+        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
+          
+5. Создать `NotificationService`:
+    - Архитектура такая же (DI, config, api, service)
+    - Kafka Consumer: слушает события OrderPaid и ShipAssembled
+    - Подключает Telegram-бота и отправляет уведомления в чат с захардкоженым ID (шаблоны сообщений, логика отправки)
+    - У Telegram-бота зарегистрирован enдпоинт `/start`, который отвечает приветственным сообщением
 
-5. Реорганизовать структуру приложений:
-   - Добавить структуру `app` с точкой входа в приложение и dependency injection
-   - Реализовать корректную инициализацию компонентов через DI
-   - Добавить health check для проверки работоспособности сервисов
+---
 
-6. Обеспечить **непрерывную интеграцию**:
-   - Настроить запуск интеграционных тестов в CI/CD пайплайне
+📂 Для упрощения выполнения домашнего задания, в папке [`/boilerplates`](boilerplates) находятся вспомогательные файлы:
+- `Taskfile.yml` — файл с готовыми командами для управления проектом:
+  - Команды для работы с Kafka и Docker Compose
+  - Команда `test-api` для проверки работоспособности API  
+  - Команды для генерации кода и линтинга
+- Папка `kafka/` — готовые компоненты для работы с Kafka:
+  - `consumer/` — базовая реализация Kafka Consumer
+  - `producer/` — базовая реализация Kafka Producer  
+  - `kafka.go` — общие утилиты для работы с Kafka
+- Папка `deploy/` — конфигурации для развертывания:
+  - `compose/` — Docker Compose файлы для всех сервисов
+  - `env/` — шаблоны переменных окружения и скрипты для их генерации
+  - `docker/` — Docker образы для сервисов
+- Папка `middleware/kafka/` — middleware для логирования Kafka сообщений
+
+---
+
+📁 Контракты событий находятся в папке [`/contracts`](contracts) и описывают взаимодействие между сервисами через Kafka:
+- [`assembly_service_contracts.md`](contracts/assembly_service_contracts.md) — события для `AssemblyService`: `OrderPaid` (входящее) и `ShipAssembled` (исходящее)
+- [`order_service_contracts.md`](contracts/order_service_contracts.md) — события для `OrderService`: `OrderPaid` (исходящее)
+
+📌 Контракты описывают **структуру событий для Kafka** — к финалу ваша реализация должна соответствовать этим контрактам для корректного взаимодействия между сервисами.
 
 ---
 
 ## 🛠 Рекомендации по оформлению проекта
 
-1. **Организуйте интеграционные тесты**:
-   - Используйте теги сборки `//go:build integration` для отделения интеграционных и e2e тестов
-   - Рекомендуемая структура тестов приведена в разделе "Интеграционные тесты"
+1. **Соблюдайте единую архитектуру для всех сервисов**:
+   - Структурируйте новый `AssemblyService` по аналогии с существующими сервисами
+   - Выделяйте слои api, service, repository, config
+   - Используйте dependency injection через пакет app/di
+   - Поддерживайте общий стиль оформления кода
 
-2. **Следуйте принципам двенадцатифакторного приложения**:
-   - Храните конфигурацию в переменных окружения
-   - Отделяйте конфигурацию от кода
-   - Используйте одинаковые окружения для разработки и запуска
+2. **Работа с Kafka**:
+   - Используйте общую библиотеку из `/platform/kafka`
+   - Разделяйте консьюмеры и продьюсеры на отдельные компоненты
+   - Применяйте контракты для сериализации/десериализации событий
 
-3. **Автоматизируйте управление окружением**:
-   - Используйте шаблоны и генераторы конфигурации
+3. **Управление конфигурацией**:
+   - Используйте переменные окружения для конфигурации Kafka и сервисов
+   - Создайте шаблон `.env.template` для `NotificationService` и `Assembly Service`
+   - Соблюдайте единообразие именования переменных в конфигах
 
-4. **Используйте архитектуру с зависимостями**:
-   - Централизуйте создание и инициализацию компонентов в пакете `app`
-   - Используйте dependency injection для передачи зависимостей между компонентами
-   - Выделяйте интерфейсы для компонентов, чтобы обеспечить возможность мокирования
+4. **Docker и инфраструктура**:
+   - Добавьте Kafka в docker-compose.yml с поддержкой KRaft-режима
+   - Убедитесь, что все сервисы подключаются к одной сети Docker
 
 ---
 
@@ -66,21 +95,68 @@
 .
 ├── README.md
 ├── Taskfile.yml
+├── assembly
+│   ├── cmd
+│   │   └── main.go
+│   ├── go.mod
+│   ├── go.sum
+│   └── internal
+│       ├── app
+│       │   ├── app.go
+│       │   └── di.go
+│       ├── config
+│       │   ├── config.go
+│       │   ├── env
+│       │   │   ├── kafka.go
+│       │   │   ├── logger.go
+│       │   │   ├── order_assembled_producer.go
+│       │   │   └── order_paid_consumer.go
+│       │   ├── interfaces.go
+│       │   └── mocks
+│       │       ├── mock_kafka_config.go
+│       │       ├── mock_logger_config.go
+│       │       ├── mock_order_assembled_producer_config.go
+│       │       └── mock_order_paid_consumer_config.go
+│       ├── converter
+│       │   └── kafka
+│       │       ├── decoder
+│       │       │   └── order_paid.go
+│       │       └── kafka.go
+│       ├── model
+│       │   └── events.go
+│       └── service
+│           ├── consumer
+│           │   └── order_consumer
+│           │       ├── consumer.go
+│           │       └── handler.go
+│           ├── mocks
+│           │   ├── mock_consumer_service.go
+│           │   └── mock_order_producer_service.go
+│           ├── producer
+│           │   └── order_producer
+│           │       └── producer.go
+│           └── service.go
 ├── buf.work.yaml
 ├── deploy
 │   ├── compose
+│   │   ├── assembly
 │   │   ├── core
 │   │   │   └── docker-compose.yml
 │   │   ├── inventory
 │   │   │   └── docker-compose.yml
-│   │   └── order
-│   │       └── docker-compose.yml
+│   │   ├── notification
+│   │   ├── order
+│   │   │   └── docker-compose.yml
+│   │   └── payment
 │   ├── docker
 │   │   └── inventory
 │   │       └── Dockerfile
 │   └── env
+│       ├── assembly.env.template
+│       ├── core.env.template
 │       ├── generate-env.sh
 │       ├── inventory.env.template
+│       ├── notification.env.template
 │       ├── order.env.template
 │       └── payment.env.template
 ├── go.work
@@ -149,6 +225,61 @@
 │           ├── suite_test.go
 │           ├── teardown.go
 │           └── test_environment.go
+├── notification
+│   ├── cmd
+│   │   └── main.go
+│   ├── go.mod
+│   ├── go.sum
+│   └── internal
+│       ├── app
+│       │   ├── app.go
+│       │   └── di.go
+│       ├── client
+│       │   └── http
+│       │       ├── client.go
+│       │       └── telegram
+│       │           └── client.go
+│       ├── config
+│       │   ├── config.go
+│       │   ├── env
+│       │   │   ├── kafka.go
+│       │   │   ├── logger.go
+│       │   │   ├── order_assembled_consumer.go
+│       │   │   ├── order_paid_consumer.go
+│       │   │   └── telegram_bot.go
+│       │   ├── interfaces.go
+│       │   └── mocks
+│       │       ├── mock_kafka_config.go
+│       │       ├── mock_logger_config.go
+│       │       ├── mock_order_assembled_consumer_config.go
+│       │       ├── mock_order_paid_consumer_config.go
+│       │       └── mock_telegram_bot_config.go
+│       ├── converter
+│       │   └── kafka
+│       │       ├── decoder
+│       │       │   ├── order_assembled.go
+│       │       │   └── order_paid.go
+│       │       └── kafka.go
+│       ├── model
+│       │   └── events.go
+│       └── service
+│           ├── consumer
+│           │   ├── order_assembled_consumer
+│           │   │   ├── consumer.go
+│           │   │   └── handler.go
+│           │   └── order_paid_consumer
+│           │       ├── consumer.go
+│           │       └── handler.go
+│           ├── mocks
+│           │   ├── mock_order_assembled_consumer_service.go
+│           │   ├── mock_order_paid_consumer_service.go
+│           │   └── mock_telegram_service.go
+│           ├── service.go
+│           └── telegram
+│               ├── service.go
+│               └── templates
+│                   ├── assembled_notification.tmpl
+│                   └── paid_notification.tmpl
 ├── order
 │   ├── cmd
 │   │   └── main.go
@@ -189,21 +320,32 @@
 │   │   │   ├── config.go
 │   │   │   ├── env
 │   │   │   │   ├── inventory_grpc.go
+│   │   │   │   ├── kafka.go
 │   │   │   │   ├── logger.go
+│   │   │   │   ├── order_assembled_consumer.go
 │   │   │   │   ├── order_http.go
+│   │   │   │   ├── order_paid_producer.go
 │   │   │   │   ├── payment_grpc.go
 │   │   │   │   └── postgres.go
 │   │   │   ├── interfaces.go
 │   │   │   └── mocks
 │   │   │       ├── mock_inventory_grpc_config.go
+│   │   │       ├── mock_kafka_config.go
 │   │   │       ├── mock_logger_config.go
+│   │   │       ├── mock_order_assembled_consumer_config.go
 │   │   │       ├── mock_order_http_config.go
+│   │   │       ├── mock_order_paid_producer_config.go
 │   │   │       ├── mock_payment_grpc_config.go
 │   │   │       └── mock_postgres_config.go
 │   │   ├── converter
+│   │   │   ├── kafka
+│   │   │   │   ├── decoder
+│   │   │   │   │   └── order_assembled.go
+│   │   │   │   └── kafka.go
 │   │   │   └── order.go
 │   │   ├── model
 │   │   │   ├── error.go
+│   │   │   ├── events.go
 │   │   │   ├── order.go
 │   │   │   └── part.go
 │   │   ├── repository
@@ -220,7 +362,13 @@
 │   │   │   │   └── update.go
 │   │   │   └── repository.go
 │   │   └── service
+│   │       ├── consumer
+│   │       │   └── order_consumer
+│   │       │       ├── consumer.go
+│   │       │       └── handler.go
 │   │       ├── mocks
+│   │       │   ├── mock_consumer_service.go
+│   │       │   ├── mock_order_producer_service.go
 │   │       │   └── mock_order_service.go
 │   │       ├── order
 │   │       │   ├── cancel.go
@@ -233,6 +381,9 @@
 │   │       │   ├── pay_test.go
 │   │       │   ├── service.go
 │   │       │   └── suite_test.go
+│   │       ├── producer
+│   │       │   └── order_producer
+│   │       │       └── producer.go
 │   │       └── service.go
 │   └── migrations
 │       ├── 20250404191615_create_uuid_ossp_extension.sql
@@ -282,10 +433,21 @@
 │       ├── grpc
 │       │   └── health
 │       │       └── health.go
+│       ├── kafka
+│       │   ├── consumer
+│       │   │   ├── consumer.go
+│       │   │   ├── group_handler.go
+│       │   │   └── message.go
+│       │   ├── kafka.go
+│       │   └── producer
+│       │       └── producer.go
 │       ├── logger
 │       │   ├── logger.go
 │       │   ├── logger_bench_test.go
 │       │   └── noop_logger.go
+│       ├── middleware
+│       │   └── kafka
+│       │       └── logging.go
 │       ├── migrator
 │       │   ├── migrator.go
 │       │   └── pg
@@ -364,6 +526,9 @@
     │   │           ├── oas_unimplemented_gen.go
     │   │           └── oas_validators_gen.go
     │   └── proto
+    │       ├── events
+    │       │   └── v1
+    │       │       └── order.pb.go
     │       ├── inventory
     │       │   └── v1
     │       │       ├── inventory.pb.go
@@ -375,6 +540,9 @@
     └── proto
         ├── buf.gen.yaml
         ├── buf.yaml
+        ├── events
+        │   └── v1
+        │       └── order.proto
         ├── inventory
         │   └── v1
         │       └── inventory.proto
@@ -385,111 +553,53 @@
 
 ---
 
-## ⚙️ Переменные окружения
+### 🔧 Комментарии
 
-- В директории `deploy/env` находятся шаблоны и скрипты для управления конфигурацией:
-  - `.env.template` — шаблон с дефолтными значениями переменных
-  - `generate-env.sh` — скрипт для генерации `.env` файлов для всех сервисов
-
----
-
-## 🧪 Интеграционные тесты
-
-- Используйте Testcontainers для создания временных контейнеров с базами данных в e2e тестах
-- Различайте уровни тестирования:
-  - **Интеграционные тесты** для репозиторий-слоя (например, для OrderService)
-  - **e2e-тесты** для тестирования API как черного ящика (например, для InventoryService)
-- Тесты помечаются тегом `integration` для отдельного запуска через команду `task test-integration`
-- Рекомендуемая структура файлов для e2e-тестов:
-  ```
-  .
-  └── tests/integration
-      ├── constants.go       # Константы для тестов
-      ├── inventory_test.go  # Тесты для inventory API
-      ├── setup.go           # Код для подготовки тестового окружения
-      ├── suite_test.go      # Основной файл тестового suite
-      ├── teardown.go        # Код для очистки после тестов
-      └── test_environment.go # Настройка тестового окружения
-  ```
+- **Каждый сервис — отдельный модуль с `go.mod`**, подключённый в `go.work`.
+- **В каждом сервисе выделены слои: `api`, `service`, `client`, `repository`, `config`, `app`** с dependency injection.
+- **Новые сервисы `AssemblyService` и `NotificationService`** построены по той же архитектуре.
+- **Kafka consumer/producer компоненты** выделены в отдельные сервисы в service слое.
+- **Платформенная библиотека `/platform`** содержит общие компоненты для работы с Kafka, логированием и другими задачами.
 
 ---
 
-## 📦 Платформенная библиотека
+## ✅ Требования к реализации
 
-- `/platform` должна содержать общие компоненты для всех микросервисов:
-  - Логгер для унифицированного логирования во всех сервисах (на базе `go.uber.org/zap`)
-  - Мигратор для работы с базами данных (в частности PostgreSQL)
-  - Утилиты для корректного закрытия ресурсов
-  - Testcontainers для e2e-тестов
-  - Health check компоненты для мониторинга состояния сервисов
-- Платформенная библиотека должна быть отдельным Go-модулем
-- Все сервисы должны использовать эту библиотеку для общей функциональности
+### Kafka:
 
----
+- Один брокер Kafka, режим KRaft (без ZooKeeper)
+- Использовать confluentinc/cp-kafka образ
 
-## 🏗 Архитектура приложения
+### AssemblyService:
 
-- Каждый сервис должен иметь структуру с четким разделением ответственности:
-  - `internal/app` - точка входа в приложение, инициализация и DI
-    - `app.go` - основной тип приложения
-    - `di.go` - регистрация зависимостей
-  - `internal/config` - компоненты для работы с конфигурацией
-    - `config.go` - основной конфигурационный объект
-    - `env/` - загрузка конфигурации из переменных окружения
-    - `interfaces.go` - интерфейсы конфигурации
-    - `mocks/` - моки для тестирования
-  - `internal/api` - API слой (HTTP, gRPC)
-    - `health/` - эндпоинты для проверки состояния сервиса
-  - `internal/service` - бизнес-логика
-  - `internal/repository` - доступ к данным
-  - `internal/client` - внешние клиенты (gRPC, HTTP, Redis и так далее)
+- Kafka Consumer:
+    - Слушает `OrderPaid`
+    - После получения запускает фоновую задачу с задержкой (rand от 1 до 10 сек)
+- Kafka Producer:
+    - После задержки публикует `ShipAssembled`
 
-### Dependency Injection
+### OrderService:
 
-- Используйте DI для создания и управления зависимостями между компонентами:
-  - Используйте интерфейсы вместо конкретных реализаций для упрощения тестирования
-  
-### Сервисы состояния
+- Kafka Producer:
+    - После вызова `PayOrder` публикует `OrderPaid`
+- Kafka Consumer:
+    - Слушает `ShipAssembled`
+    - Обновляет статус заказа на `ASSEMBLED`
 
-- Добавьте в каждый сервис механизмы проверки состояния:
-  - Реализуйте HTTP endpoint `/health` для проверки работоспособности сервиса
-  - Реализуйте gRPC Health Check Service (при использовании gRPC)
+### NotificationService:
 
-### Правильная обработка shutdown
-
-- Реализуйте корректное завершение работы сервиса:
-  - Перехватывайте сигналы OS (SIGTERM, SIGINT)
-  - Закрывайте ресурсы всех зависимостей приложения
-
----
-
-📂 Для упрощения выполнения домашнего задания, в папке [`/boilerplates`](boilerplates) находятся вспомогательные файлы:
-- `Taskfile.yml` — файл с готовыми командами для управления проектом:
-  - Команды `up-*` и `down-*` для управления контейнерами сервисов
-  - Команда `test-api` для проверки работоспособности API
-  - Команда `test-integration` для запуска интеграционных тестов
-  - Команда `env:generate` для создания `.env` файлов из шаблонов
-- Папка `deploy` с примерами конфигураций:
-  - `compose` — конфигурации Docker Compose для всех сервисов
-  - `docker` — образы Docker для сервисов
-  - `env` — шаблоны переменных окружения и скрипты для их генерации
-- Папка `pkg` с полезными библиотеками, которые нужно перенести в платформенную библиотеку:
-  - `testcontainers` — готовые обертки для Testcontainers (MongoDB, сети, приложения)
-  - `closer` — утилиты для корректного освобождения ресурсов
-- `README.md` — пример файла с отображением бейджа покрытия тестами. **Важно**: вам потребуется адаптировать ссылку на бейдж под свой GitHub аккаунт, заменив идентификатор gist в URL.
-- Папка `workflows` — содержит готовые конфигурации для CI/CD. Для использования скопируйте их в директорию `.github/workflows` в корне вашего репозитория:
-  - `ci.yml` — основной конфигурационный файл для CI
-  - `lint-reusable.yml` — запускает проверку линтером
-  - `test-reusable.yml` — запускает юнит-тесты
-  - `test-coverage-reusable.yml` — рассчитывает покрытие кода тестами и обновляет бейдж
-  - `test-integration-reusable.yml` — запускает интеграционные тесты
+- Consumer OrderPaid и ShipAssembled 
+- Отправка уведомлений в Telegram 
+- Архитектура: конфиги, DI, client, service
 
 ---
 
 ## 💡 Полезные подсказки
 
-- 📚 Изучите подход к написанию интеграционных тестов с Testcontainers из уроков 4-й недели
-- 🔄 Используйте готовые утилиты из `shared/pkg/testcontainers` для упрощения работы с контейнерами
+- 📚 Ознакомьтесь с материалами пятой недели: там подробно разобрано, как поднять Kafka, подключить её к сервисам и работать с событиями
+- 🤖 Зарегистрируйте Telegram-бота и получите токен у @BotFather
+- 🧪 Проверьте, что сообщения корректно приходят в Kafka и потребляются подписанными сервисами
+- 🛠 Используйте логгер из /platform/logger для отладки всех этапов работы с Kafka и Telegram
 - 🧠 Если возникают трудности с настройкой — обращайтесь в чат или к ревьюеру
 > **Спросить — не значит сдаться.** Это ускоряет обучение.
 
