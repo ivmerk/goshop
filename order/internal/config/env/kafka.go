@@ -1,7 +1,6 @@
 package env
 
 import (
-	"github.com/IBM/sarama"
 	"github.com/caarlos0/env/v11"
 )
 
@@ -24,12 +23,4 @@ func NewKafkaConfig() (*kafkaConfig, error) {
 
 func (cfg *kafkaConfig) Brokers() []string {
 	return cfg.raw.Brokers
-}
-
-func (cfg *kafkaConfig) Config() *sarama.Config {
-	c := sarama.NewConfig()
-	c.Version = sarama.V4_0_0_0
-	c.Producer.Return.Successes = true // обязательно для SyncProducer
-
-	return c
 }

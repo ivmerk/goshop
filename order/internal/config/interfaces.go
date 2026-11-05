@@ -31,7 +31,6 @@ type PostgresConfig interface {
 
 type KafkaConfig interface {
 	Brokers() []string
-	Config() *sarama.Config
 }
 
 type OrderPaidProducerConfig interface {
