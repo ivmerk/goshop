@@ -28,7 +28,7 @@ vars:
   ENVSUBST_VERSION: 'v1.4.3'
   ENVSUBST: '{{.BIN_DIR}}/envsubst'
   ENVDIR: '{{.ROOT_DIR}}/deploy/env'
-  SERVICES: core,inventory,order,payment
+  SERVICES: assembly,core,inventory,order,payment 
 
   NODE_MODULES_DIR: '{{.ROOT_DIR}}/node_modules/.bin'
   REDOCLY: '{{.NODE_MODULES_DIR}}/redocly'

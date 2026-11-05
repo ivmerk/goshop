@@ -40,3 +40,9 @@ packages:
     interfaces:
       LoggerConfig:
       PaymentGRPCConfig:
+  github.com/ivmerk/goshop/assembly/internal/config:
+    interfaces:
+      LoggerConfig:
+      KafkaConfig:
+      OrderPaidConsumerConfig:
+      OrderAssembledProducerConfig:
