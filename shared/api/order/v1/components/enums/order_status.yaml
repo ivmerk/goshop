@@ -4,5 +4,6 @@ enum:
   - UNKNOWN
   - PENDING_PAYMENT
   - PAID
+  - ASSEMBLED
   - CANCELLED
 example: PENDING_PAYMENT

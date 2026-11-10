@@ -534,6 +534,7 @@ const (
 	OrderStatusUNKNOWN        OrderStatus = "UNKNOWN"
 	OrderStatusPENDINGPAYMENT OrderStatus = "PENDING_PAYMENT"
 	OrderStatusPAID           OrderStatus = "PAID"
+	OrderStatusASSEMBLED      OrderStatus = "ASSEMBLED"
 	OrderStatusCANCELLED      OrderStatus = "CANCELLED"
 )
 
@@ -543,6 +544,7 @@ func (OrderStatus) AllValues() []OrderStatus {
 		OrderStatusUNKNOWN,
 		OrderStatusPENDINGPAYMENT,
 		OrderStatusPAID,
+		OrderStatusASSEMBLED,
 		OrderStatusCANCELLED,
 	}
 }
@@ -555,6 +557,8 @@ func (s OrderStatus) MarshalText() ([]byte, error) {
 	case OrderStatusPENDINGPAYMENT:
 		return []byte(s), nil
 	case OrderStatusPAID:
+		return []byte(s), nil
+	case OrderStatusASSEMBLED:
 		return []byte(s), nil
 	case OrderStatusCANCELLED:
 		return []byte(s), nil
@@ -574,6 +578,9 @@ func (s *OrderStatus) UnmarshalText(data []byte) error {
 		return nil
 	case OrderStatusPAID:
 		*s = OrderStatusPAID
+		return nil
+	case OrderStatusASSEMBLED:
+		*s = OrderStatusASSEMBLED
 		return nil
 	case OrderStatusCANCELLED:
 		*s = OrderStatusCANCELLED

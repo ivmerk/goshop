@@ -247,6 +247,7 @@ components:
         - UNKNOWN
         - PENDING_PAYMENT
         - PAID
+        - ASSEMBLED
         - CANCELLED
       example: PENDING_PAYMENT
     get_order_response:
