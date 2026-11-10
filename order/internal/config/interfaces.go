@@ -37,3 +37,9 @@ type OrderPaidProducerConfig interface {
 	Topic() string
 	Config() *sarama.Config
 }
+
+type OrderAssembledConsumerConfig interface {
+	Topic() string
+	GroupID() string
+	Config() *sarama.Config
+}
