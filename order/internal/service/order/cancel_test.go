@@ -26,6 +26,15 @@ func (s *ServiceSuite) TestCancelOrderNotFound() {
 	s.Require().ErrorIs(err, model.ErrOrderNotFound)
 }
 
+func (s *ServiceSuite) TestCancelAlreadyAssembled() {
+	s.orderRepository.On("Get", s.ctx, orderUUID).
+		Return(&model.Order{UUID: orderUUID, Status: model.OrderStatusAssembled}, nil)
+
+	err := s.service.Cancel(s.ctx, orderUUID)
+
+	s.Require().ErrorIs(err, model.ErrOrderAlreadyPaid)
+}
+
 func (s *ServiceSuite) TestCancelAlreadyPaid() {
 	s.orderRepository.On("Get", s.ctx, orderUUID).
 		Return(&model.Order{UUID: orderUUID, Status: model.OrderStatusPaid}, nil)
