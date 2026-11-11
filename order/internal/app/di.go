@@ -15,10 +15,14 @@ import (
 	orderRepo "github.com/ivmerk/goshop/order/internal/repository/order"
 	"github.com/ivmerk/goshop/order/internal/service"
 	orderSvc "github.com/ivmerk/goshop/order/internal/service/order"
+	orderAssembledConsumerSvc "github.com/ivmerk/goshop/order/internal/service/order_assembled_consumer"
 	orderProducerSvc "github.com/ivmerk/goshop/order/internal/service/producer/order_producer"
 	"github.com/ivmerk/goshop/platform/pkg/closer"
+	"github.com/ivmerk/goshop/platform/pkg/kafka"
+	kafkaConsumer "github.com/ivmerk/goshop/platform/pkg/kafka/consumer"
 	"github.com/ivmerk/goshop/platform/pkg/kafka/producer"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
+	kafkaMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/kafka"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
@@ -37,6 +41,11 @@ type diContainer struct {
 	orderProducer service.OrderProducerService
 
 	pgPool *pgxpool.Pool
+
+	consumerGroup sarama.ConsumerGroup
+
+	orderAssembledConsumer    kafka.Consumer
+	orderAssembledConsumerSvc service.ConsumerService
 }
 
 func NewDiContainer() *diContainer { return &diContainer{} }
@@ -171,4 +180,49 @@ func (d *diContainer) OrderProducer() (service.OrderProducerService, error) {
 		d.orderProducer = orderProducerSvc.NewService(kp)
 	}
 	return d.orderProducer, nil
+}
+
+func (d *diContainer) ConsumerGroup() (sarama.ConsumerGroup, error) {
+	if d.consumerGroup == nil {
+		cfg := config.AppConfig()
+		g, err := sarama.NewConsumerGroup(cfg.Kafka.Brokers(), cfg.OrderAssembledConsumer.GroupID(), cfg.OrderAssembledConsumer.Config())
+		if err != nil {
+			return nil, err
+		}
+		closer.AddNamed("Kafka consumer group", func(context.Context) error { return g.Close() })
+		d.consumerGroup = g
+	}
+	return d.consumerGroup, nil
+}
+
+func (d *diContainer) OrderAssembledConsumer() (kafka.Consumer, error) {
+	if d.orderAssembledConsumer == nil {
+		g, err := d.ConsumerGroup()
+		if err != nil {
+			return nil, err
+		}
+
+		d.orderAssembledConsumer = kafkaConsumer.NewConsumer(
+			g,
+			[]string{config.AppConfig().OrderAssembledConsumer.Topic()},
+			logger.Logger(),
+			kafkaMiddleware.Logging(logger.Logger()),
+		)
+	}
+	return d.orderAssembledConsumer, nil
+}
+
+func (d *diContainer) OrderAssembledConsumerService(ctx context.Context) (service.ConsumerService, error) {
+	if d.orderAssembledConsumerSvc == nil {
+		c, err := d.OrderAssembledConsumer()
+		if err != nil {
+			return nil, err
+		}
+		r, err := d.OrderRepository(ctx)
+		if err != nil {
+			return nil, err
+		}
+		d.orderAssembledConsumerSvc = orderAssembledConsumerSvc.NewService(c, r)
+	}
+	return d.orderAssembledConsumerSvc, nil
 }

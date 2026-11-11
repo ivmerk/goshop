@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ivmerk/goshop/order/internal/api/health"
 	"github.com/ivmerk/goshop/order/internal/config"
@@ -33,13 +34,35 @@ func New(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	logger.Info(ctx, "🚀 HTTP server started", zap.String("address", a.httpServer.Addr))
-
-	err := a.httpServer.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+	svc, err := a.di.OrderAssembledConsumerService(ctx)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	ctx, cancel := context.WithCancel(ctx)
+	closer.AddNamed("consumer loop", func(context.Context) error {
+		cancel()
+		return nil
+	})
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		logger.Info(ctx, "🚀 HTTP server started", zap.String("address", a.httpServer.Addr))
+		if err := a.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := svc.RunConsumer(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			return err
+		}
+		return nil
+	})
+
+	return g.Wait()
 }
 
 func (a *App) initDeps(ctx context.Context) error {

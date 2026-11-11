@@ -17,6 +17,8 @@ packages:
     interfaces:
       OrderService:
       OrderProducerService:
+      ConsumerService:
+      OrderAssembledConsumerConfig:
   github.com/ivmerk/goshop/order/internal/client/grpc:
     interfaces:
       InventoryClient:
