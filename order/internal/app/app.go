@@ -62,6 +62,16 @@ func (a *App) Run(ctx context.Context) error {
 		return nil
 	})
 
+	g.Go(func() error {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := a.httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	})
+
 	return g.Wait()
 }
 

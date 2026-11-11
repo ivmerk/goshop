@@ -18,7 +18,6 @@ packages:
       OrderService:
       OrderProducerService:
       ConsumerService:
-      OrderAssembledConsumerConfig:
   github.com/ivmerk/goshop/order/internal/client/grpc:
     interfaces:
       InventoryClient:
@@ -38,6 +37,9 @@ packages:
       OrderHTTPConfig:
       PaymentGRPCConfig:
       PostgresConfig:
+      KafkaConfig:
+      OrderPaidProducerConfig:
+      OrderAssembledConsumerConfig:
   github.com/ivmerk/goshop/payment/internal/config:
     interfaces:
       LoggerConfig:
