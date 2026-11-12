@@ -50,3 +50,18 @@ packages:
       KafkaConfig:
       OrderPaidConsumerConfig:
       OrderAssembledProducerConfig:
+  github.com/ivmerk/goshop/notification/internal/config:
+    interfaces:
+      LoggerConfig:
+      KafkaConfig:
+      OrderPaidConsumerConfig:
+      OrderAssembledConsumerConfig:
+      TelegramBotConfig:
+  github.com/ivmerk/goshop/notification/internal/service:
+    interfaces:
+      OrderPaidConsumerService:
+      OrderAssembledConsumerService:
+      TelegramService:
+  github.com/ivmerk/goshop/notification/internal/client/http:
+    interfaces:
+      TelegramClient:
