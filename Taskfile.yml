@@ -569,6 +569,20 @@ tasks:
         echo "✅ Статус заказа после оплаты: $ORDER_STATUS"
 
         echo
+        echo "📦 Тест 7.1: Ожидание сборки заказа через Kafka (должен стать ASSEMBLED, до ~15 с)"
+        for i in $(seq 1 15); do
+          ORDER_INFO_RESPONSE=$(curl -s -X GET "http://localhost:8080/api/v1/orders/$ORDER_UUID")
+          ORDER_STATUS=$(echo $ORDER_INFO_RESPONSE | grep -o '"status": *"[^"]*' | cut -d'"' -f4)
+          [[ "$ORDER_STATUS" == "ASSEMBLED" ]] && break
+          sleep 1
+        done
+        if [[ "$ORDER_STATUS" != "ASSEMBLED" ]]; then
+          echo "❌ Заказ не перешёл в ASSEMBLED за 15 с. Запущены ли assembly и Kafka? Статус: $ORDER_STATUS"
+          exit 1
+        fi
+        echo "✅ Заказ собран: $ORDER_STATUS"
+
+        echo
         echo "📝 Тест 8: Создание второго заказа для отмены (REST API)"
         ORDER2_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/orders" \
           -H "Content-Type: application/json" \

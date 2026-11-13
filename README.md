@@ -2,7 +2,7 @@
 
 # goshop
 
-A small spare-parts ordering platform built as a set of Go microservices. Customers create an order for a list of parts, the system prices it from the parts catalog, and the order is then paid through a payment service.
+A small spare-parts ordering platform built as a set of Go microservices. Customers create an order for a list of parts, the system prices it from the parts catalog, and the order is then paid through a payment service, assembled asynchronously and the customer is notified in Telegram.
 
 ## Services
 
@@ -11,15 +11,22 @@ A small spare-parts ordering platform built as a set of Go microservices. Custom
 | **inventory** | gRPC           | MongoDB    | Parts catalog: get a part, list parts with filters       |
 | **order**     | REST (OpenAPI) | PostgreSQL | Create, read and pay orders; calls inventory and payment |
 | **payment**   | gRPC           | none       | Processes a payment and returns a transaction ID         |
+| **assembly**  | Kafka          | none       | Consumes `OrderPaid`, simulates assembly (1–10 s), produces `ShipAssembled` |
+| **notification** | Kafka, Telegram | none  | Consumes `OrderPaid` and `ShipAssembled`, sends Telegram messages |
 
 ```
 client ──REST──▶ order ──gRPC──▶ inventory ──▶ MongoDB
                   │
                   ├──gRPC──▶ payment
                   └──▶ PostgreSQL
+
+order ──OrderPaid (order.paid)──▶ Kafka ──▶ assembly ──ShipAssembled (order.assembled)──▶ Kafka ──▶ order
+                                   └──────────────▶ notification ◀──────────────┘  └──▶ Telegram
 ```
 
-Order flow: `POST /api/v1/orders` validates the parts through inventory and stores the order as `PENDING_PAYMENT`. `POST /api/v1/orders/{uuid}/pay` calls payment and moves the order to `PAID`.
+Order flow: `POST /api/v1/orders` validates the parts through inventory and stores the order as `PENDING_PAYMENT`. `POST /api/v1/orders/{uuid}/pay` calls payment and moves the order to `PAID` and publishes `OrderPaid`. Assembly picks it up and publishes `ShipAssembled`; order consumes it and moves the order to `ASSEMBLED` (such an order can no longer be cancelled). Notification sends a Telegram message for both events.
+
+Events are protobuf messages keyed by order UUID, delivered at-least-once (consumers are idempotent; a transactional outbox is not implemented).
 
 ## Repository layout
 
@@ -28,6 +35,8 @@ Order flow: `POST /api/v1/orders` validates the parts through inventory and stor
 ├── inventory/      # gRPC service, MongoDB
 ├── order/          # REST service, PostgreSQL, gRPC clients
 ├── payment/        # gRPC service
+├── assembly/       # Kafka consumer/producer, simulates order assembly
+├── notification/   # Kafka consumer, Telegram bot
 ├── platform/       # shared library: logger, closer, migrator, gRPC health, testcontainers helpers
 ├── shared/         # protobuf and OpenAPI definitions, generated code
 └── deploy/
@@ -44,6 +53,8 @@ Each service is a separate Go module in one workspace (`go.work`). Inside a serv
 - gRPC and Protocol Buffers (managed with buf), OpenAPI with ogen and chi
 - PostgreSQL (pgx, goose migrations) and MongoDB
 - zap for logging, caarlos0/env for configuration
+- Kafka (KRaft, sarama) with protobuf events
+- Telegram Bot API (go-telegram/bot)
 - Docker, Docker Compose, Testcontainers
 - GitHub Actions, golangci-lint, mockery, Task
 
@@ -62,6 +73,8 @@ task up-all
 go run ./inventory/cmd
 go run ./payment/cmd
 go run ./order/cmd
+go run ./assembly/cmd
+go run ./notification/cmd   # needs a Telegram bot token, see below
 ```
 
 Try it:
@@ -86,6 +99,10 @@ An end-to-end smoke check of the whole chain is available as `task test-api`.
 ## Configuration
 
 Every service reads its settings from environment variables. For local runs they are loaded from `deploy/compose/<service>/.env`, which `task env:generate` produces from `deploy/env/*.env.template`. In containers the same variables are passed through the environment. Required variables are validated at startup, so a missing value fails fast.
+
+### Telegram bot
+
+Create a bot via @BotFather, write `/start` to it and take your chat id from `https://api.telegram.org/bot<TOKEN>/getUpdates`. Put them into `deploy/env/.env` (git-ignored) as `NOTIFICATION_TELEGRAM_BOT_TOKEN` and `NOTIFICATION_TELEGRAM_CHAT_ID`, then run `task env:generate`. Never commit the token.
 
 ## Health checks and shutdown
 
@@ -114,6 +131,5 @@ Every service reads its settings from environment variables. For local runs they
 
 ## Roadmap
 
-- Asynchronous messaging with Kafka (order events between services)
 - Redis cache for hot catalog reads
 
