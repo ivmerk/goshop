@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "common/v1/user.proto";
+
+option go_package = "github.com/ivmerk/goshop/shared/pkg/proto/user/v1;user_v1";
+
+service UserService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message RegisterRequest {
+  string login = 1;
+  string password = 2;
+  string email = 3;
+  repeated common.v1.NotificationMethod notification_methods = 4;
+}
+
+message RegisterResponse {
+  string user_uuid = 1;
+}
+
+message GetUserRequest {
+  string user_uuid = 1;
+}
+
+message GetUserResponse{
+  string user_uuid = 1;
+  string login = 2;
+  string email = 3;
+  repeated common.v1.NotificationMethod notification_methods = 4;
+}

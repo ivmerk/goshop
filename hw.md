@@ -1,91 +1,48 @@
-# 🧱 Домашнее задание — Неделя 5
+# 🧱 Домашнее задание — Неделя 6
 **Курс: «Микросервисы, как в BigTech 2.0»**
 
 ---
 
 ## 📌 Задание
 
-На этой неделе вы начинаете работу с асинхронной коммуникацией между сервисами с помощью Apache Kafka. Вам нужно развернуть брокеры Kafka и реализовать взаимодействие между `OrderService` и новым `AssemblyService` через события.
+На этой неделе вы создадите новый сервис — `AuthService`, который отвечает за регистрацию, аутентификацию и хранение сессий пользователей. Необходимо реализовать gRPC API, настроить работу с PostgreSQL и Redis, и интегрировать миграции.
+
+---
 
 ### ✅ Что нужно сделать:
 
-1. Поднять Kafka в KRaft-режиме с одним брокером:
-    - Разместить конфигурацию в deploy/compose/core/docker-compose.yml 
-    - Использовать официальный образ Kafka без ZooKeeper (KRaft)
-
-2. Создать AssemblyService:
-    - Оформлен в том же стиле: cmd/, internal/, слои api, service, di, config 
-    - Поддержка .env, конфигов, DI 
-    - Kafka Consumer: слушает событие OrderPaid, после получения — ждёт 10 секунд 
-    - Kafka Producer: отправляет событие ShipAssembled после задержки
-
-3. В `AssemblyService`:
-    - Реализовать **Kafka Consumer**, который обрабатывает событие об оплате заказа (`OrderPaid`)
-        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
-        - Логика: при получении события — подождать 10 секунд
-    - Реализовать **Kafka Producer**, который отправляет событие об успешной сборке (`ShipAssembled`) после задержки
-        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
-
-4. В `OrderService`:
-    - Реализовать **Kafka Producer**, который отправляет событие `OrderPaid` после успешной оплаты
-        - Контракт описан в [`contracts/order_service_contracts.md`](contracts/order_service_contracts.md)
-    - Реализовать **Kafka Consumer**, который обрабатывает событие `ShipAssembled` и обновляет статус заказа на `COMPLETED`
-        - Контракт события описан в [`contracts/assembly_service_contracts.md`](contracts/assembly_service_contracts.md)
-          
-5. Создать `NotificationService`:
-    - Архитектура такая же (DI, config, api, service)
-    - Kafka Consumer: слушает события OrderPaid и ShipAssembled
-    - Подключает Telegram-бота и отправляет уведомления в чат с захардкоженым ID (шаблоны сообщений, логика отправки)
-    - У Telegram-бота зарегистрирован enдпоинт `/start`, который отвечает приветственным сообщением
+1. Создать новый сервис `AuthService`:
+    - Использовать ту же архитектуру, что и в других сервисах: `cmd/`, `internal/`, `config`, `service`, `repository`, `di`
+    - Поддержка конфигурации через `.env`
+    - Самописный DI-контейнер
+2. Реализовать **gRPC API** в соответствии с контрактом в [`contracts/auth_service_contracts.md`](contracts/auth_service_contracts.md)
+3. Реализовать хранение данных:
+    - Пользователи — в **PostgreSQL**
+        - Реализовать миграции SQL
+        - Обеспечить автоматическую накатку миграций при старте сервиса
+    - Сессии — в **Redis**
+        - Срок жизни сессии — **24 часа (TTL)**
 
 ---
 
 📂 Для упрощения выполнения домашнего задания, в папке [`/boilerplates`](boilerplates) находятся вспомогательные файлы:
-- `Taskfile.yml` — файл с готовыми командами для управления проектом:
-  - Команды для работы с Kafka и Docker Compose
-  - Команда `test-api` для проверки работоспособности API  
-  - Команды для генерации кода и линтинга
-- Папка `kafka/` — готовые компоненты для работы с Kafka:
-  - `consumer/` — базовая реализация Kafka Consumer
-  - `producer/` — базовая реализация Kafka Producer  
-  - `kafka.go` — общие утилиты для работы с Kafka
-- Папка `deploy/` — конфигурации для развертывания:
-  - `compose/` — Docker Compose файлы для всех сервисов
-  - `env/` — шаблоны переменных окружения и скрипты для их генерации
-  - `docker/` — Docker образы для сервисов
-- Папка `middleware/kafka/` — middleware для логирования Kafka сообщений
+- `Taskfile.yml` — файл с готовыми командами для управления проектом (907 строк):
+  - Команды для работы с Docker Compose и базами данных
+  - Команды для генерации кода и тестирования
+  - Команды для управления миграциями
+- Папка `cache/` — готовые компоненты для работы с Redis:
+  - `client.go` — интерфейс для кеша
+  - `redis/` — реализация Redis клиента с операторами
+- Папка `middleware/` — middleware для авторизации:
+  - `grpc/auth.go` — gRPC interceptor для проверки сессий через metadata
+  - `http/auth.go` — HTTP middleware для проверки сессий через заголовки
+- Папка `deploy/` — конфигурации для развертывания
 
 ---
 
-📁 Контракты событий находятся в папке [`/contracts`](contracts) и описывают взаимодействие между сервисами через Kafka:
-- [`assembly_service_contracts.md`](contracts/assembly_service_contracts.md) — события для `AssemblyService`: `OrderPaid` (входящее) и `ShipAssembled` (исходящее)
-- [`order_service_contracts.md`](contracts/order_service_contracts.md) — события для `OrderService`: `OrderPaid` (исходящее)
+📁 Контракт для `AuthService` находится в файле [`contracts/auth_service_contracts.md`](contracts/auth_service_contracts.md) и описывает gRPC API для управления пользователями и сессиями: методы `Register`, `Login`, `Whoami`, `GetUser`.
 
-📌 Контракты описывают **структуру событий для Kafka** — к финалу ваша реализация должна соответствовать этим контрактам для корректного взаимодействия между сервисами.
-
----
-
-## 🛠 Рекомендации по оформлению проекта
-
-1. **Соблюдайте единую архитектуру для всех сервисов**:
-   - Структурируйте новый `AssemblyService` по аналогии с существующими сервисами
-   - Выделяйте слои api, service, repository, config
-   - Используйте dependency injection через пакет app/di
-   - Поддерживайте общий стиль оформления кода
-
-2. **Работа с Kafka**:
-   - Используйте общую библиотеку из `/platform/kafka`
-   - Разделяйте консьюмеры и продьюсеры на отдельные компоненты
-   - Применяйте контракты для сериализации/десериализации событий
-
-3. **Управление конфигурацией**:
-   - Используйте переменные окружения для конфигурации Kafka и сервисов
-   - Создайте шаблон `.env.template` для `NotificationService` и `Assembly Service`
-   - Соблюдайте единообразие именования переменных в конфигах
-
-4. **Docker и инфраструктура**:
-   - Добавьте Kafka в docker-compose.yml с поддержкой KRaft-режима
-   - Убедитесь, что все сервисы подключаются к одной сети Docker
+📌 Контракт описывает **структуру gRPC API** — к финалу ваша реализация должна соответствовать этому контракту.
 
 ---
 
@@ -142,6 +99,8 @@
 │   │   ├── assembly
 │   │   ├── core
 │   │   │   └── docker-compose.yml
+│   │   ├── iam
+│   │   │   └── docker-compose.yml
 │   │   ├── inventory
 │   │   │   └── docker-compose.yml
 │   │   ├── notification
@@ -155,12 +114,91 @@
 │       ├── assembly.env.template
 │       ├── core.env.template
 │       ├── generate-env.sh
+│       ├── iam.env.template
 │       ├── inventory.env.template
 │       ├── notification.env.template
 │       ├── order.env.template
 │       └── payment.env.template
 ├── go.work
 ├── go.work.sum
+├── iam
+│   ├── cmd
+│   │   └── main.go
+│   ├── go.mod
+│   ├── go.sum
+│   ├── internal
+│   │   ├── api
+│   │   │   ├── auth
+│   │   │   │   └── v1
+│   │   │   │       ├── api.go
+│   │   │   │       ├── login.go
+│   │   │   │       └── whoami.go
+│   │   │   └── user
+│   │   │       └── v1
+│   │   │           ├── api.go
+│   │   │           ├── get.go
+│   │   │           └── register.go
+│   │   ├── app
+│   │   │   ├── app.go
+│   │   │   └── di.go
+│   │   ├── config
+│   │   │   ├── config.go
+│   │   │   ├── env
+│   │   │   │   ├── iam_grpc.go
+│   │   │   │   ├── logger.go
+│   │   │   │   ├── postgres.go
+│   │   │   │   ├── redis.go
+│   │   │   │   └── session.go
+│   │   │   ├── interfaces.go
+│   │   │   └── mocks
+│   │   │       ├── mock_iam_grpc_config.go
+│   │   │       ├── mock_logger_config.go
+│   │   │       ├── mock_postgres_config.go
+│   │   │       ├── mock_redis_config.go
+│   │   │       └── mock_session_config.go
+│   │   ├── converter
+│   │   │   ├── auth.go
+│   │   │   └── user.go
+│   │   ├── model
+│   │   │   ├── auth.go
+│   │   │   ├── errors.go
+│   │   │   └── user.go
+│   │   ├── repository
+│   │   │   ├── converter
+│   │   │   │   ├── session.go
+│   │   │   │   └── user.go
+│   │   │   ├── mocks
+│   │   │   │   ├── mock_session_repository.go
+│   │   │   │   └── mock_user_repository.go
+│   │   │   ├── model
+│   │   │   │   ├── session.go
+│   │   │   │   └── user.go
+│   │   │   ├── repository.go
+│   │   │   ├── session
+│   │   │   │   ├── add_session_to_user_set.go
+│   │   │   │   ├── create.go
+│   │   │   │   ├── get.go
+│   │   │   │   └── repository.go
+│   │   │   └── user
+│   │   │       ├── create.go
+│   │   │       ├── get.go
+│   │   │       └── repository.go
+│   │   └── service
+│   │       ├── auth
+│   │       │   ├── login.go
+│   │       │   ├── service.go
+│   │       │   └── whoami.go
+│   │       ├── mocks
+│   │       │   ├── mock_auth_service.go
+│   │       │   └── mock_user_service.go
+│   │       ├── service.go
+│   │       └── user
+│   │           ├── get.go
+│   │           ├── register.go
+│   │           └── service.go
+│   └── migrations
+│       ├── 20250404191615_create_uuid_ossp_extension.sql
+│       └── 20250404191624_create_user_table.sql
 ├── inventory
 │   ├── cmd
 │   │   └── main.go
@@ -176,23 +214,34 @@
 │   │   ├── app
 │   │   │   ├── app.go
 │   │   │   └── di.go
+│   │   ├── client
+│   │   │   └── grpc
+│   │   │       ├── client.go
+│   │   │       └── iam
+│   │   │           └── v1
+│   │   │               └── client.go
 │   │   ├── config
 │   │   │   ├── config.go
 │   │   │   ├── env
+│   │   │   │   ├── iam_grpc.go
 │   │   │   │   ├── inventory_grpc.go
 │   │   │   │   ├── logger.go
 │   │   │   │   └── mongo.go
 │   │   │   ├── interfaces.go
 │   │   │   └── mocks
+│   │   │       ├── mock_iamgrpc_config.go
 │   │   │       ├── mock_inventory_grpc_config.go
 │   │   │       ├── mock_logger_config.go
 │   │   │       └── mock_mongo_config.go
 │   │   ├── converter
-│   │   │   └── part.go
+│   │   │   ├── part.go
+│   │   │   └── user.go
 │   │   ├── model
+│   │   │   ├── auth.go
 │   │   │   ├── const.go
 │   │   │   ├── errors.go
-│   │   │   └── part.go
+│   │   │   ├── part.go
+│   │   │   └── user.go
 │   │   ├── repository
 │   │   │   ├── converter
 │   │   │   │   └── part.go
@@ -305,11 +354,15 @@
 │   │   │   │   └── part.go
 │   │   │   └── grpc
 │   │   │       ├── client.go
+│   │   │       ├── iam
+│   │   │       │   └── v1
+│   │   │       │       └── client.go
 │   │   │       ├── inventory
 │   │   │       │   └── v1
 │   │   │       │       ├── client.go
 │   │   │       │       └── list_parts.go
 │   │   │       ├── mocks
+│   │   │       │   ├── mock_iam_client.go
 │   │   │       │   ├── mock_inventory_client.go
 │   │   │       │   └── mock_payment_client.go
 │   │   │       └── payment
@@ -319,6 +372,7 @@
 │   │   ├── config
 │   │   │   ├── config.go
 │   │   │   ├── env
+│   │   │   │   ├── iam_grpc.go
 │   │   │   │   ├── inventory_grpc.go
 │   │   │   │   ├── kafka.go
 │   │   │   │   ├── logger.go
@@ -342,12 +396,15 @@
 │   │   │   │   ├── decoder
 │   │   │   │   │   └── order_assembled.go
 │   │   │   │   └── kafka.go
-│   │   │   └── order.go
+│   │   │   ├── order.go
+│   │   │   └── user.go
 │   │   ├── model
+│   │   │   ├── auth.go
 │   │   │   ├── error.go
 │   │   │   ├── events.go
 │   │   │   ├── order.go
-│   │   │   └── part.go
+│   │   │   ├── part.go
+│   │   │   └── user.go
 │   │   ├── repository
 │   │   │   ├── converter
 │   │   │   │   └── order.go
@@ -428,6 +485,11 @@
 │   ├── go.mod
 │   ├── go.sum
 │   └── pkg
+│       ├── cache
+│       │   ├── client.go
+│       │   └── redis
+│       │       ├── client.go
+│       │       └── set_operator.go
 │       ├── closer
 │       │   └── closer.go
 │       ├── grpc
@@ -446,6 +508,11 @@
 │       │   ├── logger_bench_test.go
 │       │   └── noop_logger.go
 │       ├── middleware
+│       │   ├── grpc
+│       │   │   └── auth.go
+│       │   ├── http
+│       │   │   ├── auth.go
+│       │   │   └── error.go
 │       │   └── kafka
 │       │       └── logging.go
 │       ├── migrator
@@ -469,6 +536,8 @@
 │               └── path.go
 └── shared
     ├── api
+    │   ├── bundles
+    │   │   └── order.openapi.v1.bundle.yaml
     │   └── order
     │       └── v1
     │           ├── components
@@ -493,6 +562,8 @@
     │           │   ├── order_dto.yaml
     │           │   ├── pay_order_request.yaml
     │           │   └── pay_order_response.yaml
+    │           ├── headers
+    │           │   └── session_uuid.yaml
     │           ├── order.openapi.yaml
     │           ├── params
     │           │   └── order_uuid.yaml
@@ -526,6 +597,14 @@
     │   │           ├── oas_unimplemented_gen.go
     │   │           └── oas_validators_gen.go
     │   └── proto
+    │       ├── auth
+    │       │   └── v1
+    │       │       ├── auth.pb.go
+    │       │       └── auth_grpc.pb.go
+    │       ├── common
+    │       │   └── v1
+    │       │       ├── session.pb.go
+    │       │       └── user.pb.go
     │       ├── events
     │       │   └── v1
     │       │       └── order.pb.go
@@ -533,75 +612,101 @@
     │       │   └── v1
     │       │       ├── inventory.pb.go
     │       │       └── inventory_grpc.pb.go
-    │       └── payment
+    │       ├── payment
+    │       │   └── v1
+    │       │       ├── payment.pb.go
+    │       │       └── payment_grpc.pb.go
+    │       └── user
     │           └── v1
-    │               ├── payment.pb.go
-    │               └── payment_grpc.pb.go
+    │               ├── user.pb.go
+    │               └── user_grpc.pb.go
     └── proto
+        ├── auth
+        │   └── v1
+        │       └── auth.proto
         ├── buf.gen.yaml
         ├── buf.yaml
+        ├── common
+        │   └── v1
+        │       ├── session.proto
+        │       └── user.proto
         ├── events
         │   └── v1
         │       └── order.proto
         ├── inventory
         │   └── v1
         │       └── inventory.proto
-        └── payment
+        ├── payment
+        │   └── v1
+        │       └── payment.proto
+        └── user
             └── v1
-                └── payment.proto
+                └── user.proto
 ```
 
 ---
 
 ### 🔧 Комментарии
 
-- **Каждый сервис — отдельный модуль с `go.mod`**, подключённый в `go.work`.
-- **В каждом сервисе выделены слои: `api`, `service`, `client`, `repository`, `config`, `app`** с dependency injection.
-- **Новые сервисы `AssemblyService` и `NotificationService`** построены по той же архитектуре.
-- **Kafka consumer/producer компоненты** выделены в отдельные сервисы в service слое.
-- **Платформенная библиотека `/platform`** содержит общие компоненты для работы с Kafka, логированием и другими задачами.
+- **AuthService — отдельный модуль с `go.mod`**, подключённый в `go.work`.
+- **В сервисе выделены слои: `api`, `service`, `repository`, `client`, `config`, `di`** с dependency injection.
+- **Middleware для авторизации** работают через gRPC metadata и HTTP заголовки.
+- **Сессии передаются между сервисами** через контекст и metadata/заголовки.
 
 ---
 
 ## ✅ Требования к реализации
 
-### Kafka:
+### gRPC API:
 
-- Один брокер Kafka, режим KRaft (без ZooKeeper)
-- Использовать confluentinc/cp-kafka образ
+- Контракт описан в `contracts/auth_service_contracts.md`
+- Необходимо реализовать:
+    - `Register`
+    - `Login`
+    - `Whoami`
+    - `GetUser`
+- Рекомендуется использовать `buf` и сгенерировать код в `/shared/generated/`
 
-### AssemblyService:
+### PostgreSQL:
 
-- Kafka Consumer:
-    - Слушает `OrderPaid`
-    - После получения запускает фоновую задачу с задержкой (rand от 1 до 10 сек)
-- Kafka Producer:
-    - После задержки публикует `ShipAssembled`
+- Хранит информацию о пользователях
+- Структура таблицы описана в контракте
+- Миграции автоматически применяются при старте сервиса
 
-### OrderService:
+### Redis:
 
-- Kafka Producer:
-    - После вызова `PayOrder` публикует `OrderPaid`
-- Kafka Consumer:
-    - Слушает `ShipAssembled`
-    - Обновляет статус заказа на `ASSEMBLED`
+- Используется для хранения сессий Redis
+- TTL — 24 часа
 
-### NotificationService:
+### Интеграция с другими сервисами:
 
-- Consumer OrderPaid и ShipAssembled 
-- Отправка уведомлений в Telegram 
-- Архитектура: конфиги, DI, client, service
+- **В `OrderService`** добавить HTTP middleware для проверки авторизации:
+  - Использовать заголовок `X-Session-Uuid` для передачи сессии в HTTP запросах
+  - Добавить `sessionUUID` в контекст запроса
+- **В gRPC клиенте `InventoryService`** внутри `OrderService`:
+  - Использовать `ForwardSessionUUIDToGRPC()` для добавления `sessionUUID` в исходящие gRPC metadata
+  - Это позволит передавать сессию от Order сервиса к Inventory сервису
+- **В `InventoryService`** добавить gRPC interceptor для проверки авторизации:
+  - Проверять `session-uuid` в incoming gRPC metadata
+  - Валидировать сессию через вызов `AuthService.Whoami`
+
+#### 📖 Incoming vs Outgoing Context
+
+- **Incoming Context** — контекст входящего запроса, содержит metadata/заголовки от клиента
+- **Outgoing Context** — контекст исходящего запроса, в который добавляются metadata/заголовки для передачи другим сервисам
 
 ---
 
 ## 💡 Полезные подсказки
 
-- 📚 Ознакомьтесь с материалами пятой недели: там подробно разобрано, как поднять Kafka, подключить её к сервисам и работать с событиями
-- 🤖 Зарегистрируйте Telegram-бота и получите токен у @BotFather
-- 🧪 Проверьте, что сообщения корректно приходят в Kafka и потребляются подписанными сервисами
-- 🛠 Используйте логгер из /platform/logger для отладки всех этапов работы с Kafka и Telegram
-- 🧠 Если возникают трудности с настройкой — обращайтесь в чат или к ревьюеру
-> **Спросить — не значит сдаться.** Это ускоряет обучение.
+- **Сначала изучите материалы шестой недели**:  
+  В уроках шестой недели представлены примеры и объяснения, которые помогут в выполнении задания.  
+  👉 Рекомендуется сначала ознакомиться с уроками, а затем приступать к реализации.
+
+- **Не стесняйтесь обращаться за помощью**:  
+  Если вы столкнулись с трудностями или у вас возникли вопросы, обращайтесь в чат курса или к своему ревьюеру (если вы на тарифе с проверкой).
+  > Если в течение 30 минут вы не можете решить проблему, лучше попросить помощи.  
+  > **Спросить — не значит сдаться**, это ускоряет процесс обучения благодаря опыту других.
 
 ---
 
