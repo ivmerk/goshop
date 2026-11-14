@@ -28,7 +28,7 @@ vars:
   ENVSUBST_VERSION: 'v1.4.3'
   ENVSUBST: '{{.BIN_DIR}}/envsubst'
   ENVDIR: '{{.ROOT_DIR}}/deploy/env'
-  SERVICES: assembly,core,inventory,notification,order,payment
+  SERVICES: assembly,core,iam,inventory,notification,order,payment
 
   NODE_MODULES_DIR: '{{.ROOT_DIR}}/node_modules/.bin'
   REDOCLY: '{{.NODE_MODULES_DIR}}/redocly'
@@ -411,10 +411,25 @@ tasks:
       - echo "[task] 🛑 Останавливаем Order с зависимостями"
       - docker compose down --volumes
 
+  up-iam:
+    desc: Поднять IAM сервис и все его зависимости (PostgreSQL, Redis)
+    dir: deploy/compose/iam
+    cmds:
+      - echo "[task] 🔐 Поднимаем IAM с зависимостями"
+      - docker compose up --build --detach
+
+  down-iam:
+    desc: Остановить и удалить IAM сервис и все его зависимости
+    dir: deploy/compose/iam
+    cmds:
+      - echo "[task] 🛑 Останавливаем IAM с зависимостями"
+      - docker compose down --volumes
+
   up-all:
     desc: Поднять все сервисы по очереди вместе с зависимостями
     cmds:
       - task up-core
+      - task up-iam
       - task up-inventory
       - task up-order
 
@@ -422,6 +437,7 @@ tasks:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
       - task down-core
+      - task down-iam
       - task down-inventory
       - task down-order
 
@@ -435,6 +451,58 @@ tasks:
         }
     status:
       - test -x {{.GRPCURL}}
+
+  test-iam:
+    desc: "🔐 Тестирование IAM сервиса (регистрация, логин, whoami)"
+    deps: [ grpcurl:install ]
+    silent: true
+    cmds:
+      - |
+        echo "🔐 Тестирование IAM сервиса"
+
+        TIMESTAMP=$(date +%s)
+        USER_EMAIL="test-user-$TIMESTAMP@example.com"
+        USER_PASSWORD="SecurePassword123!"
+
+        echo "📝 Тест 1: Регистрация пользователя"
+        REGISTER_RESPONSE=$({{.GRPCURL}} -plaintext -d "{\"login\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\",\"email\":\"$USER_EMAIL\"}" localhost:50053 user.v1.UserService/Register 2>&1)
+        USER_UUID=$(echo "$REGISTER_RESPONSE" | grep -o '"userUuid": "[^"]*' | cut -d'"' -f4)
+        if [ -z "$USER_UUID" ]; then
+          echo "❌ Не удалось зарегистрировать пользователя."
+          echo "🔍 Ответ сервера: $REGISTER_RESPONSE"
+          exit 1
+        fi
+        echo "✅ Пользователь зарегистрирован: $USER_EMAIL (UUID: $USER_UUID)"
+
+        echo
+        echo "🔑 Тест 2: Логин пользователя"
+        LOGIN_RESPONSE=$({{.GRPCURL}} -plaintext -d "{\"login\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\"}" localhost:50053 auth.v1.AuthService/Login 2>&1)
+        SESSION_UUID=$(echo "$LOGIN_RESPONSE" | grep -o '"sessionUuid": "[^"]*' | cut -d'"' -f4)
+        if [ -z "$SESSION_UUID" ]; then
+          echo "❌ Не удалось войти в систему."
+          echo "🔍 Ответ сервера: $LOGIN_RESPONSE"
+          exit 1
+        fi
+        echo "✅ Пользователь вошёл в систему. Session UUID: $SESSION_UUID"
+
+        echo
+        echo "👤 Тест 3: Whoami с session UUID"
+        WHOAMI_RESPONSE=$({{.GRPCURL}} -plaintext -d "{\"session_uuid\":\"$SESSION_UUID\"}" localhost:50053 auth.v1.AuthService/Whoami 2>&1)
+        WHOAMI_UUID=$(echo "$WHOAMI_RESPONSE" | grep -o '"userUuid": "[^"]*' | cut -d'"' -f4)
+        if [ "$WHOAMI_UUID" != "$USER_UUID" ]; then
+          echo "❌ UUID не совпадает. Ожидался: $USER_UUID, получен: $WHOAMI_UUID"
+          echo "🔍 Ответ сервера: $WHOAMI_RESPONSE"
+          exit 1
+        fi
+        echo "✅ Whoami работает корректно. UUID пользователя: $WHOAMI_UUID"
+
+        # Данные для использования в других тестах (например, test-api с авторизацией)
+        echo "export TEST_USER_UUID=\"$USER_UUID\"" > /tmp/test_auth_data.sh
+        echo "export TEST_SESSION_UUID=\"$SESSION_UUID\"" >> /tmp/test_auth_data.sh
+        echo "export TEST_USER_EMAIL=\"$USER_EMAIL\"" >> /tmp/test_auth_data.sh
+
+        echo
+        echo "🎉 Все тесты IAM выполнены успешно!"
 
   test-api:
     desc: "🧪 Запуск тестов для проверки API микросервисов"
