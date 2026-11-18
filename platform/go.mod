@@ -4,6 +4,8 @@ go 1.27.3
 
 require (
 	github.com/IBM/sarama v1.61.1
+	github.com/gomodule/redigo v1.9.3
+	github.com/ivmerk/goshop/shared v0.0.0
 	github.com/moby/moby/api v1.56.1
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose/v3 v3.29.0
@@ -87,3 +89,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+replace github.com/ivmerk/goshop/shared => ../shared
