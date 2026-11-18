@@ -23,3 +23,11 @@ type UserInfo struct {
 	Login string
 	Email string
 }
+
+// RegisterInput — данные для регистрации нового пользователя.
+type RegisterInput struct {
+	Login               string
+	Password            string
+	Email               string
+	NotificationMethods []NotificationMethod
+}
