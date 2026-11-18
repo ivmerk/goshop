@@ -504,6 +504,82 @@ tasks:
         echo
         echo "🎉 Все тесты IAM выполнены успешно!"
 
+  test-api-auth-rejection:
+    desc: "🔒 Проверка отказа неавторизованным запросам (Inventory gRPC, Order REST). Сначала запустите test-iam"
+    deps: [ grpcurl:install ]
+    silent: true
+    cmds:
+      - |
+        echo "🔒 Тестирование отклонения неавторизованных запросов"
+
+        # Данные аутентификации создаёт test-iam
+        if [ -f /tmp/test_auth_data.sh ]; then
+          source /tmp/test_auth_data.sh
+          echo "📋 Session UUID: $TEST_SESSION_UUID"
+        else
+          echo "❌ Данные аутентификации не найдены. Запустите сначала test-iam."
+          exit 1
+        fi
+
+        FAKE_ORDER_UUID="00000000-0000-0000-0000-000000000000"
+
+        echo
+        echo "🔍 Тест 1: Inventory gRPC без session-uuid"
+        RESPONSE=$({{.GRPCURL}} -plaintext -d '{"filter":{}}' localhost:50051 inventory.v1.InventoryService/ListParts 2>&1 || true)
+        if [[ "$RESPONSE" != *"Unauthenticated"* ]]; then
+          echo "❌ Запрос без сессии не отклонён. Ответ: $RESPONSE"
+          exit 1
+        fi
+        echo "✅ Отклонён (Unauthenticated)"
+
+        echo
+        echo "🔍 Тест 2: Inventory gRPC с неизвестным session-uuid"
+        RESPONSE=$({{.GRPCURL}} -plaintext -H "session-uuid: 00000000-0000-0000-0000-000000000000" -d '{"filter":{}}' localhost:50051 inventory.v1.InventoryService/ListParts 2>&1 || true)
+        if [[ "$RESPONSE" != *"Unauthenticated"* ]]; then
+          echo "❌ Запрос с неверной сессией не отклонён. Ответ: $RESPONSE"
+          exit 1
+        fi
+        echo "✅ Отклонён (Unauthenticated)"
+
+        echo
+        echo "🔍 Тест 3: Inventory gRPC с валидной сессией"
+        RESPONSE=$({{.GRPCURL}} -plaintext -H "session-uuid: $TEST_SESSION_UUID" -d '{"filter":{}}' localhost:50051 inventory.v1.InventoryService/ListParts 2>&1 || true)
+        if [[ "$RESPONSE" != *'"parts"'* ]]; then
+          echo "❌ Запрос с валидной сессией не прошёл. Ответ: $RESPONSE"
+          exit 1
+        fi
+        echo "✅ Принят, список деталей получен"
+
+        echo
+        echo "🔍 Тест 4: Order REST без заголовка X-Session-Uuid"
+        CODE=$(curl -s -o /tmp/order_noauth.json -w '%{http_code}' "http://localhost:8080/api/v1/orders/$FAKE_ORDER_UUID")
+        if [[ "$CODE" != "401" ]] || ! grep -q "MISSING_SESSION" /tmp/order_noauth.json; then
+          echo "❌ Ожидался 401 MISSING_SESSION, получен код $CODE: $(cat /tmp/order_noauth.json)"
+          exit 1
+        fi
+        echo "✅ Отклонён (401 MISSING_SESSION)"
+
+        echo
+        echo "🔍 Тест 5: Order REST с неизвестной сессией"
+        CODE=$(curl -s -o /tmp/order_badauth.json -w '%{http_code}' -H "X-Session-Uuid: 00000000-0000-0000-0000-000000000000" "http://localhost:8080/api/v1/orders/$FAKE_ORDER_UUID")
+        if [[ "$CODE" != "401" ]] || ! grep -q "INVALID_SESSION" /tmp/order_badauth.json; then
+          echo "❌ Ожидался 401 INVALID_SESSION, получен код $CODE: $(cat /tmp/order_badauth.json)"
+          exit 1
+        fi
+        echo "✅ Отклонён (401 INVALID_SESSION)"
+
+        echo
+        echo "🔍 Тест 6: Order REST с валидной сессией (несуществующий заказ → не 401)"
+        CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Session-Uuid: $TEST_SESSION_UUID" "http://localhost:8080/api/v1/orders/$FAKE_ORDER_UUID")
+        if [[ "$CODE" == "401" ]]; then
+          echo "❌ Валидная сессия отклонена Order API"
+          exit 1
+        fi
+        echo "✅ Принят (код $CODE, заказ не найден — это ожидаемо)"
+
+        echo
+        echo "🎉 Все проверки отклонения неавторизованных запросов пройдены!"
+
   test-api:
     desc: "🧪 Запуск тестов для проверки API микросервисов"
     deps: [ grpcurl:install ]
