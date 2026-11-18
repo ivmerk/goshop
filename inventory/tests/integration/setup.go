@@ -40,15 +40,23 @@ func setupTestEnvironment(ctx context.Context) (*TestEnvironment, error) {
 		return nil, err
 	}
 
+	env.IAM, err = startFakeIAM(testSessionUUID)
+	if err != nil {
+		return nil, err
+	}
+
 	env.App, err = app.NewContainer(ctx,
 		app.WithName(appName),
 		app.WithPort(appPort),
 		app.WithDockerfile(path.GetProjectRoot(), dockerfilePath),
 		app.WithNetwork(env.Network.Name()),
+		app.WithExtraHosts(hostGatewayName+":host-gateway"),
 		app.WithLogOutput(io.Discard), // для отладки замените на os.Stdout
 		app.WithEnv(map[string]string{
 			"GRPC_HOST":                     "0.0.0.0",
 			"GRPC_PORT":                     appPort,
+			"IAM_GRPC_HOST":                 hostGatewayName, // заглушка IAM живёт на хосте
+			"IAM_GRPC_PORT":                 env.IAM.Port(),
 			"LOGGER_LEVEL":                  "info",
 			"LOGGER_AS_JSON":                "true",
 			testcontainers.MongoHostKey:     mongoContainerName, // адрес внутри docker-сети

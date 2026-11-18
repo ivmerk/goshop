@@ -13,6 +13,10 @@ const (
 	mongoUsername      = "inventory_admin"
 	mongoPassword      = "inventory_secret"
 
+	// testSessionUUID сессия, которую заглушка IAM считает валидной
+	testSessionUUID = "11111111-1111-1111-1111-111111111111"
+	hostGatewayName = "host.docker.internal"
+
 	appName        = "inventory-e2e-app"
 	appPort        = "50051"
 	dockerfilePath = "deploy/docker/inventory/Dockerfile"

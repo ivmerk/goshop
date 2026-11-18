@@ -13,6 +13,9 @@ func teardownTestEnvironment(ctx context.Context, env *TestEnvironment) {
 			log.Printf("failed to terminate app: %v", err)
 		}
 	}
+	if env.IAM != nil {
+		env.IAM.Stop()
+	}
 	if env.Mongo != nil {
 		if err := env.Mongo.Terminate(ctx); err != nil {
 			log.Printf("failed to terminate mongo: %v", err)

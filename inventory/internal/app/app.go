@@ -92,7 +92,14 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		return err
 	}
 
-	a.grpcServer = grpc.NewServer()
+	authInterceptor, err := a.di.AuthInterceptor()
+	if err != nil {
+		return err
+	}
+
+	a.grpcServer = grpc.NewServer(
+		grpc.ChainUnaryInterceptor(authInterceptor.Unary()),
+	)
 	closer.AddNamed("gRPC server", func(context.Context) error {
 		a.grpcServer.GracefulStop()
 		return nil

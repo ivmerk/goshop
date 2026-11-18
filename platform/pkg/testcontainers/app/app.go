@@ -33,6 +33,7 @@ type Config struct {
 	Port          string
 	Env           map[string]string
 	Networks      []string
+	ExtraHosts    []string
 	LogOutput     io.Writer
 	StartupWait   wait.Strategy
 	Logger        Logger
@@ -71,7 +72,7 @@ func NewContainer(ctx context.Context, opts ...Option) (*Container, error) {
 		Env:                cfg.Env,
 		WaitingFor:         cfg.StartupWait,
 		ExposedPorts:       []string{cfg.Port + "/tcp"},
-		HostConfigModifier: DefaultHostConfig(),
+		HostConfigModifier: hostConfig(cfg.ExtraHosts),
 	}
 
 	genericContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -136,5 +137,13 @@ func streamContainerLogs(ctx context.Context, container testcontainers.Container
 func DefaultHostConfig() func(hc *container.HostConfig) {
 	return func(hc *container.HostConfig) {
 		hc.AutoRemove = true
+	}
+}
+
+func hostConfig(extraHosts []string) func(hc *container.HostConfig) {
+	base := DefaultHostConfig()
+	return func(hc *container.HostConfig) {
+		base(hc)
+		hc.ExtraHosts = append(hc.ExtraHosts, extraHosts...)
 	}
 }

@@ -8,13 +8,16 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	authMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/grpc"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
 func (s *InventorySuite) ctx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 10*time.Second)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), authMiddleware.SessionUUIDMetadataKey, testSessionUUID)
+	return context.WithTimeout(ctx, 10*time.Second)
 }
 
 func (s *InventorySuite) TestHealthCheck() {
@@ -72,4 +75,21 @@ func (s *InventorySuite) TestListParts_FilterByUUID() {
 	s.Require().NoError(err)
 	s.Require().Len(resp.GetParts(), 1)
 	s.Equal(target, resp.GetParts()[0].GetUuid())
+}
+
+func (s *InventorySuite) TestListParts_WithoutSession_Unauthenticated() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := s.client.ListParts(ctx, &inventoryV1.ListPartsRequest{})
+	s.Equal(codes.Unauthenticated, status.Code(err))
+}
+
+func (s *InventorySuite) TestListParts_InvalidSession_Unauthenticated() {
+	ctx := metadata.AppendToOutgoingContext(context.Background(), authMiddleware.SessionUUIDMetadataKey, "unknown-session")
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	_, err := s.client.ListParts(ctx, &inventoryV1.ListPartsRequest{})
+	s.Equal(codes.Unauthenticated, status.Code(err))
 }

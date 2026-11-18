@@ -58,3 +58,10 @@ func WithLogger(logger Logger) Option {
 		c.Logger = logger
 	}
 }
+
+// WithExtraHosts добавляет записи в /etc/hosts контейнера, например "host.docker.internal:host-gateway"
+func WithExtraHosts(hosts ...string) Option {
+	return func(c *Config) {
+		c.ExtraHosts = hosts
+	}
+}

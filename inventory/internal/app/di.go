@@ -5,6 +5,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	inventoryAPI "github.com/ivmerk/goshop/inventory/internal/api/inventory/v1"
 	"github.com/ivmerk/goshop/inventory/internal/config"
@@ -13,6 +15,8 @@ import (
 	"github.com/ivmerk/goshop/inventory/internal/service"
 	partService "github.com/ivmerk/goshop/inventory/internal/service/part"
 	"github.com/ivmerk/goshop/platform/pkg/closer"
+	authMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/grpc"
+	authV1 "github.com/ivmerk/goshop/shared/pkg/proto/auth/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
@@ -21,11 +25,28 @@ type diContainer struct {
 	partService    service.PartService
 	partRepository repository.PartRepository
 
+	authInterceptor *authMiddleware.AuthInterceptor
+
 	mongoClient *mongo.Client
 	partsColl   *mongo.Collection
 }
 
 func NewDiContainer() *diContainer { return &diContainer{} }
+
+func (d *diContainer) AuthInterceptor() (*authMiddleware.AuthInterceptor, error) {
+	if d.authInterceptor == nil {
+		conn, err := grpc.NewClient(
+			config.AppConfig().IAM.Address(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			return nil, err
+		}
+		closer.AddNamed("IAM gRPC connection", func(context.Context) error { return conn.Close() })
+		d.authInterceptor = authMiddleware.NewAuthInterceptor(authV1.NewAuthServiceClient(conn))
+	}
+	return d.authInterceptor, nil
+}
 
 func (d *diContainer) InventoryV1API(ctx context.Context) (inventoryV1.InventoryServiceServer, error) {
 	if d.inventoryV1API == nil {

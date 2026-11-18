@@ -12,4 +12,5 @@ type TestEnvironment struct {
 	Network *network.Network
 	Mongo   *mongo.Container
 	App     *app.Container
+	IAM     *fakeIAM
 }
