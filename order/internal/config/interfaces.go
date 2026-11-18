@@ -15,6 +15,10 @@ type InventoryGRPCConfig interface {
 	Address() string
 }
 
+type IAMGRPCConfig interface {
+	Address() string
+}
+
 type OrderHTTPConfig interface {
 	Address() string
 	ReadTimeout() time.Duration

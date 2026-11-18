@@ -121,13 +121,22 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 		return err
 	}
 
+	authMW, err := a.di.AuthMiddleware()
+	if err != nil {
+		return err
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
 	r.Use(customMiddleware.RequestLogger)
 
 	r.Get("/health", health.Handler)
-	r.Mount("/", orderServer)
+	// всё API заказов требует валидной сессии (заголовок X-Session-Uuid)
+	r.Group(func(r chi.Router) {
+		r.Use(authMW.Handle)
+		r.Mount("/", orderServer)
+	})
 
 	cfg := config.AppConfig().OrderHTTP
 	a.httpServer = &http.Server{

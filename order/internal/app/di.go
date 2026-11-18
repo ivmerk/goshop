@@ -22,8 +22,10 @@ import (
 	kafkaConsumer "github.com/ivmerk/goshop/platform/pkg/kafka/consumer"
 	"github.com/ivmerk/goshop/platform/pkg/kafka/producer"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
+	httpMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/http"
 	kafkaMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/kafka"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
+	authV1 "github.com/ivmerk/goshop/shared/pkg/proto/auth/v1"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
@@ -33,6 +35,8 @@ type diContainer struct {
 	orderAPI    *orderAPI.OrderHandler
 	orderSvc    service.OrderService
 	orderRepo   repository.OrderRepository
+
+	authMiddleware *httpMiddleware.AuthMiddleware
 
 	inventoryClient grpcClient.InventoryClient
 	paymentClient   grpcClient.PaymentClient
@@ -108,6 +112,19 @@ func (d *diContainer) OrderRepository(ctx context.Context) (repository.OrderRepo
 		d.orderRepo = orderRepo.NewOrderRepository(pool)
 	}
 	return d.orderRepo, nil
+}
+
+func (d *diContainer) AuthMiddleware() (*httpMiddleware.AuthMiddleware, error) {
+	if d.authMiddleware == nil {
+		conn, err := grpc.NewClient(config.AppConfig().IAMGRPC.Address(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, err
+		}
+		closer.AddNamed("IAM gRPC connection", func(context.Context) error { return conn.Close() })
+		d.authMiddleware = httpMiddleware.NewAuthMiddleware(authV1.NewAuthServiceClient(conn))
+	}
+	return d.authMiddleware, nil
 }
 
 func (d *diContainer) InventoryClient() (grpcClient.InventoryClient, error) {

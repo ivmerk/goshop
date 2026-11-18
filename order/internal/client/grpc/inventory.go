@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	authMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/grpc"
 	inventory_v1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
@@ -18,6 +19,9 @@ func NewInventoryClient(client inventory_v1.InventoryServiceClient) *inventoryCl
 // ListPartPrices возвращает цены найденных деталей: ключ — UUID детали.
 // Не найденные детали в результат не попадают.
 func (c *inventoryClient) ListPartPrices(ctx context.Context, uuids []string) (map[string]float64, error) {
+	// Inventory проверяет сессию сам, поэтому передаём session-uuid дальше в metadata
+	ctx = authMiddleware.ForwardSessionUUIDToGRPC(ctx)
+
 	resp, err := c.client.ListParts(ctx, &inventory_v1.ListPartsRequest{
 		Filter: &inventory_v1.PartsFilter{Uuids: uuids},
 	})

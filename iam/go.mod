@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ivmerk/goshop/platform v0.0.0-00010101000000-000000000000
 	github.com/ivmerk/goshop/shared v0.0.0
-	github.com/jackc/pgx/v5 v5.13.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.58.0
