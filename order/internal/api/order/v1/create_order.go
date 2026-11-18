@@ -8,15 +8,22 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ivmerk/goshop/order/internal/model"
+	httpMiddleware "github.com/ivmerk/goshop/platform/pkg/middleware/http"
 	orderV1 "github.com/ivmerk/goshop/shared/pkg/openapi/order/v1"
 )
 
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
+	// пользователь берётся из сессии, которую проверил auth middleware, а не из тела запроса
+	user, ok := httpMiddleware.GetUserFromContext(ctx)
+	if !ok || user.GetUserUuid() == "" {
+		return &orderV1.InternalServerError{Code: http.StatusInternalServerError, Message: "user not found in context"}, nil
+	}
+
 	partUUIDs := make([]string, 0, len(req.PartUuids))
 	for _, id := range req.PartUuids {
 		partUUIDs = append(partUUIDs, id.String())
 	}
-	order, err := h.orderService.Create(ctx, req.UserUUID.String(), partUUIDs)
+	order, err := h.orderService.Create(ctx, user.GetUserUuid(), partUUIDs)
 	if err != nil {
 		switch {
 		case errors.Is(err, model.ErrEmptyParts), errors.Is(err, model.ErrPartNotFound):

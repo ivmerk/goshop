@@ -163,15 +163,10 @@ components:
   schemas:
     create_order_request:
       type: object
+      description: The user is taken from the session (X-Session-Uuid header), not from the body.
       required:
-        - user_uuid
         - part_uuids
       properties:
-        user_uuid:
-          type: string
-          format: uuid
-          description: Identifier of the user placing the order.
-          example: 123e4567-e89b-12d3-a456-426614174000
         part_uuids:
           type: array
           description: List of item UUIDs in the order.

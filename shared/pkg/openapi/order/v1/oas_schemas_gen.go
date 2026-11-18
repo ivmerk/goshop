@@ -80,27 +80,16 @@ func (s *ConflictError) SetMessage(val string) {
 
 func (*ConflictError) cancelOrderRes() {}
 
+// The user is taken from the session (X-Session-Uuid header), not from the body.
 // Ref: #/components/schemas/create_order_request
 type CreateOrderRequest struct {
-	// Identifier of the user placing the order.
-	UserUUID uuid.UUID `json:"user_uuid"`
 	// List of item UUIDs in the order.
 	PartUuids []uuid.UUID `json:"part_uuids"`
-}
-
-// GetUserUUID returns the value of UserUUID.
-func (s *CreateOrderRequest) GetUserUUID() uuid.UUID {
-	return s.UserUUID
 }
 
 // GetPartUuids returns the value of PartUuids.
 func (s *CreateOrderRequest) GetPartUuids() []uuid.UUID {
 	return s.PartUuids
-}
-
-// SetUserUUID sets the value of UserUUID.
-func (s *CreateOrderRequest) SetUserUUID(val uuid.UUID) {
-	s.UserUUID = val
 }
 
 // SetPartUuids sets the value of PartUuids.

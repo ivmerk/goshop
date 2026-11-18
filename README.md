@@ -28,7 +28,7 @@ order ──OrderPaid (order.paid)──▶ Kafka ──▶ assembly ──ShipA
                                    └──────────────▶ notification ◀──────────────┘  └──▶ Telegram
 ```
 
-Order flow: the client registers and logs in through iam and gets a session UUID. `POST /api/v1/orders` validates the parts through inventory and stores the order as `PENDING_PAYMENT`. `POST /api/v1/orders/{uuid}/pay` calls payment and moves the order to `PAID` and publishes `OrderPaid`. Assembly picks it up and publishes `ShipAssembled`; order consumes it and moves the order to `ASSEMBLED` (such an order can no longer be cancelled). Notification sends a Telegram message for both events.
+Order flow: the client registers and logs in through iam and gets a session UUID. `POST /api/v1/orders` takes the user from the session (not from the body), validates the parts through inventory and stores the order as `PENDING_PAYMENT`. `POST /api/v1/orders/{uuid}/pay` calls payment and moves the order to `PAID` and publishes `OrderPaid`. Assembly picks it up and publishes `ShipAssembled`; order consumes it and moves the order to `ASSEMBLED` (such an order can no longer be cancelled). Notification sends a Telegram message for both events.
 
 ### Authentication
 
@@ -115,7 +115,7 @@ grpcurl -plaintext -H "session-uuid: <session uuid>" -d '{"filter":{}}' \
 curl -X POST localhost:8080/api/v1/orders \
   -H "Content-Type: application/json" \
   -H "X-Session-Uuid: <session uuid>" \
-  -d '{"user_uuid":"<uuid>","part_uuids":["<part uuid>"]}'
+  -d '{"part_uuids":["<part uuid>"]}'
 
 # Pay for it
 curl -X POST localhost:8080/api/v1/orders/<order uuid>/pay \
