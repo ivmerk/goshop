@@ -65,3 +65,18 @@ packages:
   github.com/ivmerk/goshop/notification/internal/client/http:
     interfaces:
       TelegramClient:
+  github.com/ivmerk/goshop/iam/internal/repository:
+    interfaces:
+      UserRepository:
+      SessionRepository:
+  github.com/ivmerk/goshop/iam/internal/service:
+    interfaces:
+      UserService:
+      AuthService:
+  github.com/ivmerk/goshop/iam/internal/config:
+    interfaces:
+      LoggerConfig:
+      IAMGRPCConfig:
+      PostgresConfig:
+      RedisConfig:
+      SessionConfig:
