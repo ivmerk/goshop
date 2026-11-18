@@ -1,11 +1,12 @@
 go 1.27.3
 
 use (
+	./assembly
+	./iam
 	./inventory
+	./notification
 	./order
 	./payment
 	./platform
 	./shared
-	./assembly
-	./notification
 )
