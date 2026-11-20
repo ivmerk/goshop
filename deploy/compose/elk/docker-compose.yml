@@ -1,0 +1,83 @@
+# ELK-стек для сбора и просмотра логов сервисов.
+# Поток: stdout сервиса (JSON zap) → Docker gelf-драйвер → Logstash (UDP 12201) → Elasticsearch → Kibana.
+# Kibana: http://localhost:5601 (data view "svc-logs-*" создаётся автоматически).
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false" # только для локальной разработки
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.0
+    container_name: logstash
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - ./logstash/pipeline.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "12201:12201/udp" # gelf: сюда Docker-демон отправляет логи контейнеров
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  kibana-setup: # одноразовый контейнер: создаёт data view "svc-logs-*"
+    image: curlimages/curl:8.11.1
+    container_name: kibana-setup
+    depends_on:
+      kibana:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: [ "sh", "-c" ]
+    command:
+      - |
+        curl -fsS -X POST http://kibana:5601/api/data_views/data_view \
+          -H 'kbn-xsrf: true' -H 'Content-Type: application/json' \
+          -d '{"data_view":{"id":"logs","title":"svc-logs-*","name":"Service logs","timeFieldName":"@timestamp"},"override":true}' \
+          && echo ' data view created'
+    networks:
+      - microservices-net
+
+volumes:
+  elasticsearch_data:
+
+networks:
+  microservices-net:
+    external: true

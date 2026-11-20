@@ -6,6 +6,12 @@
 
 x-service: &service
   restart: unless-stopped
+  # Логи в Logstash по GELF (UDP, Docker-демон отправляет с хоста). Если ELK не запущен,
+  # UDP-пакеты просто теряются, сервисы это не ломает. Поднять ELK: task up-elk
+  logging:
+    driver: gelf
+    options:
+      gelf-address: udp://127.0.0.1:12201 # именно 127.0.0.1: localhost резолвится в IPv6
   networks:
     - microservices-net
 

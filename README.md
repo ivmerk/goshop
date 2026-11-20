@@ -134,6 +134,20 @@ Every service reads its settings from environment variables. For local runs they
 
 Create a bot via @BotFather, write `/start` to it and take your chat id from `https://api.telegram.org/bot<TOKEN>/getUpdates`. Put them into `deploy/env/.env` (git-ignored) as `NOTIFICATION_TELEGRAM_BOT_TOKEN` and `NOTIFICATION_TELEGRAM_CHAT_ID`, then run `task env:generate`. Never commit the token.
 
+## Logging (ELK)
+
+Сервисы запускаются в контейнерах (`task up-services`, единый `deploy/docker/service/Dockerfile`) и пишут структурированный JSON (zap) в stdout.
+Docker-драйвер `gelf` отправляет его в Logstash (UDP `127.0.0.1:12201`), далее Elasticsearch (индексы `svc-logs-<service>-<date>`) и Kibana.
+
+```bash
+task up-core up-iam up-inventory up-order   # инфраструктура
+task up-elk                                  # Elasticsearch, Logstash, Kibana
+task up-services                             # сервисы в контейнерах (логи уходят в ELK)
+```
+
+Kibana: <http://localhost:5601>, data view «Service logs» (`svc-logs-*`) создаётся автоматически; фильтр по сервису: `service: order`.
+Запускать сервисы через `go run` одновременно с контейнерами нельзя: порты заняты (`task down-services`).
+
 ## Health checks and shutdown
 
 - HTTP: `GET /health` on the order service.

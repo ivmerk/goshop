@@ -425,6 +425,20 @@ tasks:
       - echo "[task] 🛑 Останавливаем IAM с зависимостями"
       - docker compose down --volumes
 
+  up-elk:
+    desc: Поднять ELK-стек (Elasticsearch, Logstash, Kibana на :5601)
+    dir: deploy/compose/elk
+    cmds:
+      - echo "[task] 📜 Поднимаем ELK"
+      - docker compose up --detach
+
+  down-elk:
+    desc: Остановить и удалить ELK-стек вместе с данными
+    dir: deploy/compose/elk
+    cmds:
+      - echo "[task] 🛑 Останавливаем ELK"
+      - docker compose down --volumes
+
   up-services:
     desc: Собрать и поднять все прикладные сервисы в контейнерах (нужна инфраструктура)
     dir: deploy/compose/services
@@ -446,12 +460,14 @@ tasks:
       - task up-iam
       - task up-inventory
       - task up-order
+      - task up-elk
       - task up-services
 
   down-all:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
       - task down-services
+      - task down-elk
       - task down-core
       - task down-iam
       - task down-inventory
