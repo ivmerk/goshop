@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -14,6 +15,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/grpc/health"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
 	"github.com/ivmerk/goshop/platform/pkg/prometheus"
+	"github.com/ivmerk/goshop/platform/pkg/tracing"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
@@ -46,6 +48,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initLogger,
 		a.initCloser,
 		a.initMetrics,
+		a.initTracing,
 		a.initDI,
 		a.initListener,
 		a.initGRPCServer,
@@ -94,7 +97,10 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		return err
 	}
 
-	a.grpcServer = grpc.NewServer(grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor()))
+	a.grpcServer = grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()), // продолжает trace из gRPC-метаданных
+		grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor()),
+	)
 	closer.AddNamed("gRPC server", func(context.Context) error {
 		a.grpcServer.GracefulStop()
 		return nil
@@ -110,4 +116,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 
 func (a *App) initMetrics(_ context.Context) error {
 	return prometheus.Serve()
+}
+
+func (a *App) initTracing(ctx context.Context) error {
+	return tracing.Init(ctx, "payment")
 }

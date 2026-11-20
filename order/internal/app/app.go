@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/stdlib"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/logger"
 	"github.com/ivmerk/goshop/platform/pkg/migrator"
 	"github.com/ivmerk/goshop/platform/pkg/prometheus"
+	"github.com/ivmerk/goshop/platform/pkg/tracing"
 )
 
 type App struct {
@@ -81,6 +83,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initLogger,
 		a.initCloser,
 		a.initMetrics,
+		a.initTracing,
 		a.initDI,
 		a.initMigrations,
 		a.initHTTPServer,
@@ -129,6 +132,12 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 	}
 
 	r := chi.NewRouter()
+	// otelhttp первым: корневой спан охватывает всю обработку запроса, а trace context
+	// из входящих заголовков (traceparent) продолжается. В имя спана — только метод:
+	// путь содержит uuid и дал бы неограниченное число разных имён.
+	r.Use(otelhttp.NewMiddleware("order", otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+		return "HTTP " + r.Method
+	})))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
 	r.Use(prometheus.HTTPMiddleware)
@@ -156,4 +165,8 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 
 func (a *App) initMetrics(_ context.Context) error {
 	return prometheus.Serve()
+}
+
+func (a *App) initTracing(ctx context.Context) error {
+	return tracing.Init(ctx, "order")
 }

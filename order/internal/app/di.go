@@ -5,6 +5,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -117,7 +118,8 @@ func (d *diContainer) OrderRepository(ctx context.Context) (repository.OrderRepo
 func (d *diContainer) AuthMiddleware() (*httpMiddleware.AuthMiddleware, error) {
 	if d.authMiddleware == nil {
 		conn, err := grpc.NewClient(config.AppConfig().IAMGRPC.Address(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +132,8 @@ func (d *diContainer) AuthMiddleware() (*httpMiddleware.AuthMiddleware, error) {
 func (d *diContainer) InventoryClient() (grpcClient.InventoryClient, error) {
 	if d.inventoryClient == nil {
 		conn, err := grpc.NewClient(config.AppConfig().InventoryGRPC.Address(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +146,8 @@ func (d *diContainer) InventoryClient() (grpcClient.InventoryClient, error) {
 func (d *diContainer) PaymentClient() (grpcClient.PaymentClient, error) {
 	if d.paymentClient == nil {
 		conn, err := grpc.NewClient(config.AppConfig().PaymentGRPC.Address(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 		if err != nil {
 			return nil, err
 		}

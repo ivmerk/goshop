@@ -60,6 +60,7 @@ services:
     env_file: ../payment/.env
     environment:
       GRPC_HOST: 0.0.0.0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${PAYMENT_GRPC_PORT:-50052}:50052"
 
@@ -78,6 +79,7 @@ services:
       POSTGRES_HOST: postgres-order
       POSTGRES_PORT: "5432"
       KAFKA_BROKERS: kafka:29092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "${ORDER_HTTP_PORT:-8080}:8080"
 
