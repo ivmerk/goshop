@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -17,6 +18,8 @@ type Key string
 const (
 	traceIDKey Key = "trace_id"
 	userIDKey  Key = "user_id"
+
+	spanIDKey = "span_id"
 )
 
 // Глобальный singleton логгер
@@ -226,7 +229,14 @@ func parseLevel(levelStr string) zapcore.Level {
 func fieldsFromContext(ctx context.Context) []zap.Field {
 	fields := make([]zap.Field, 0)
 
-	if traceID, ok := ctx.Value(traceIDKey).(string); ok && traceID != "" {
+	// Идентификаторы активного спана OpenTelemetry: по ним лог связывается с трейсом в Jaeger.
+	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		fields = append(fields,
+			zap.String(string(traceIDKey), sc.TraceID().String()),
+			zap.String(spanIDKey, sc.SpanID().String()),
+		)
+	} else if traceID, ok := ctx.Value(traceIDKey).(string); ok && traceID != "" {
+		// Запасной вариант: trace_id, положенный в контекст вручную (без OpenTelemetry).
 		fields = append(fields, zap.String(string(traceIDKey), traceID))
 	}
 
