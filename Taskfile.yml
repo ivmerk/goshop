@@ -425,17 +425,33 @@ tasks:
       - echo "[task] 🛑 Останавливаем IAM с зависимостями"
       - docker compose down --volumes
 
+  up-services:
+    desc: Собрать и поднять все прикладные сервисы в контейнерах (нужна инфраструктура)
+    dir: deploy/compose/services
+    cmds:
+      - echo "[task] 🧩 Поднимаем прикладные сервисы в контейнерах"
+      - docker compose up --build --detach
+
+  down-services:
+    desc: Остановить и удалить контейнеры прикладных сервисов
+    dir: deploy/compose/services
+    cmds:
+      - echo "[task] 🛑 Останавливаем прикладные сервисы"
+      - docker compose down
+
   up-all:
-    desc: Поднять все сервисы по очереди вместе с зависимостями
+    desc: Поднять инфраструктуру и все прикладные сервисы (в контейнерах)
     cmds:
       - task up-core
       - task up-iam
       - task up-inventory
       - task up-order
+      - task up-services
 
   down-all:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
+      - task down-services
       - task down-core
       - task down-iam
       - task down-inventory

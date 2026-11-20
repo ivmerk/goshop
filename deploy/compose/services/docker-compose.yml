@@ -1,0 +1,100 @@
+# Прикладные сервисы в контейнерах.
+# Общие значения (топики, логгер, учётные данные БД) берутся из сгенерированных
+# deploy/compose/<service>/.env (task env:generate), а адреса инфраструктуры
+# переопределяются ниже именами контейнеров внутри сети microservices-net.
+# Требует запущенной инфраструктуры: task up-core up-iam up-inventory up-order.
+
+x-service: &service
+  restart: unless-stopped
+  networks:
+    - microservices-net
+
+x-build: &build
+  context: ../../..
+  dockerfile: deploy/docker/service/Dockerfile
+
+services:
+  iam:
+    <<: *service
+    container_name: iam
+    build:
+      <<: *build
+      args: { SERVICE: iam }
+    env_file: ../iam/.env
+    environment:
+      GRPC_HOST: 0.0.0.0
+      POSTGRES_HOST: postgres-iam
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis-iam
+      REDIS_PORT: "6379"
+    ports:
+      - "${IAM_GRPC_PORT:-50053}:50053"
+
+  inventory:
+    <<: *service
+    container_name: inventory
+    build:
+      <<: *build
+      args: { SERVICE: inventory }
+    env_file: ../inventory/.env
+    environment:
+      GRPC_HOST: 0.0.0.0
+      IAM_GRPC_HOST: iam
+      MONGO_HOST: mongo-inventory
+      MONGO_PORT: "27017"
+    ports:
+      - "${INVENTORY_GRPC_PORT:-50051}:50051"
+
+  payment:
+    <<: *service
+    container_name: payment
+    build:
+      <<: *build
+      args: { SERVICE: payment }
+    env_file: ../payment/.env
+    environment:
+      GRPC_HOST: 0.0.0.0
+    ports:
+      - "${PAYMENT_GRPC_PORT:-50052}:50052"
+
+  order:
+    <<: *service
+    container_name: order
+    build:
+      <<: *build
+      args: { SERVICE: order }
+    env_file: ../order/.env
+    environment:
+      HTTP_HOST: 0.0.0.0
+      INVENTORY_GRPC_HOST: inventory
+      PAYMENT_GRPC_HOST: payment
+      IAM_GRPC_HOST: iam
+      POSTGRES_HOST: postgres-order
+      POSTGRES_PORT: "5432"
+      KAFKA_BROKERS: kafka:29092
+    ports:
+      - "${ORDER_HTTP_PORT:-8080}:8080"
+
+  assembly:
+    <<: *service
+    container_name: assembly
+    build:
+      <<: *build
+      args: { SERVICE: assembly }
+    env_file: ../assembly/.env
+    environment:
+      KAFKA_BROKERS: kafka:29092
+
+  notification:
+    <<: *service
+    container_name: notification
+    build:
+      <<: *build
+      args: { SERVICE: notification }
+    env_file: ../notification/.env
+    environment:
+      KAFKA_BROKERS: kafka:29092
+
+networks:
+  microservices-net:
+    external: true
