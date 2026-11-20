@@ -1,0 +1,20 @@
+# Шаблон конфигурации с отправкой в Telegram. Плейсхолдеры подставляет entrypoint (sed)
+# из переменных окружения контейнера, секреты в репозитории не хранятся.
+route:
+  receiver: telegram
+  group_by: [ alertname ]
+  group_wait: 0s        # шлём сразу: событие редкое и важное
+  group_interval: 1m
+  repeat_interval: 5m   # пока условие истинно, напоминаем раз в 5 минут
+
+receivers:
+  - name: telegram
+    telegram_configs:
+      - bot_token: __TELEGRAM_BOT_TOKEN__
+        chat_id: __TELEGRAM_CHAT_ID__
+        parse_mode: ""
+        send_resolved: true
+        message: |
+          {{ if eq .Status "firing" }}🔥{{ else }}✅{{ end }} {{ .CommonLabels.alertname }}
+          {{ range .Alerts }}{{ .Annotations.summary }}: {{ .Annotations.description }}
+          {{ end }}

@@ -1,0 +1,9 @@
+# Запасная конфигурация, когда Telegram не настроен: алерты принимаются и видны в UI
+# Alertmanager (http://localhost:9093), но никуда не отправляются.
+route:
+  receiver: "null"
+  group_by: [ alertname ]
+  group_wait: 0s
+
+receivers:
+  - name: "null"

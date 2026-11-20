@@ -1,0 +1,12 @@
+groups:
+  - name: orders
+    rules:
+      - alert: TooManyOrders
+        # Суммируем по всем инстансам Order: больше 10 созданных заказов за последнюю минуту
+        expr: sum(increase(orders_total[1m])) > 10
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Всплеск заказов"
+          description: "За последнюю минуту создано {{ $value | printf \"%.0f\" }} заказов (порог: 10)."

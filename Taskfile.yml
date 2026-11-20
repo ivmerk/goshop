@@ -440,11 +440,12 @@ tasks:
       - docker compose down --volumes
 
   up-monitoring:
-    desc: Поднять Prometheus (:9090) и Grafana (:3000, admin/admin)
+    desc: Поднять Prometheus (:9090), Alertmanager (:9093) и Grafana (:3000, admin/admin)
     dir: deploy/compose/monitoring
     cmds:
-      - echo "[task] 📈 Поднимаем Prometheus и Grafana"
-      - docker compose up --detach
+      - echo "[task] 📈 Поднимаем Prometheus, Alertmanager и Grafana"
+      # --env-file подаёт в compose токен и chat_id Telegram для Alertmanager (файл в .gitignore)
+      - docker compose --env-file ../../env/.env up --detach --force-recreate
 
   down-monitoring:
     desc: Остановить Prometheus и Grafana вместе с данными
@@ -551,6 +552,38 @@ tasks:
 
         echo
         echo "🎉 Все тесты IAM выполнены успешно!"
+
+  test-alert:
+    desc: "🚨 Создать 12 заказов за минуту и убедиться, что сработал алерт TooManyOrders (нужны запущенные сервисы и task up-monitoring)"
+    deps: [ grpcurl:install, test-iam ]
+    silent: true
+    cmds:
+      - |
+        source /tmp/test_auth_data.sh
+
+        PART_UUID=$({{.GRPCURL}} -plaintext -H "session-uuid: $TEST_SESSION_UUID" -d '{"filter":{}}' \
+          localhost:50051 inventory.v1.InventoryService/ListParts | grep -o '"uuid": "[^"]*' | head -1 | cut -d'"' -f4)
+        if [ -z "$PART_UUID" ]; then echo "❌ Не удалось получить деталь из Inventory"; exit 1; fi
+
+        echo "🚨 Создаём 12 заказов подряд"
+        for i in $(seq 1 12); do
+          curl -s -o /dev/null -H "X-Session-Uuid: $TEST_SESSION_UUID" -X POST "http://localhost:8080/api/v1/orders" \
+            -H "Content-Type: application/json" -d "{\"part_uuids\":[\"$PART_UUID\"]}"
+        done
+
+        echo "⏳ Ждём срабатывания алерта в Prometheus (до ~30 с)"
+        for i in $(seq 1 15); do
+          STATE=$(curl -s localhost:9090/api/v1/alerts | grep -o '"alertname":"TooManyOrders"[^}]*}[^}]*"state":"[a-z]*"' | grep -o '"state":"[a-z]*"' | head -1)
+          if [[ "$STATE" == *firing* ]]; then
+            echo "✅ Алерт TooManyOrders в состоянии firing"
+            AM=$(curl -s localhost:9093/api/v2/alerts | grep -c TooManyOrders)
+            if [ "$AM" -ge 1 ]; then echo "✅ Alertmanager получил алерт (http://localhost:9093)"; else echo "❌ Alertmanager алерт не получил"; exit 1; fi
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "❌ Алерт не сработал за 30 с"
+        exit 1
 
   test-api-auth-rejection:
     desc: "🔒 Проверка отказа неавторизованным запросам (Inventory gRPC, Order REST). Сначала запустите test-iam"

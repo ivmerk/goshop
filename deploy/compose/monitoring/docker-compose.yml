@@ -7,9 +7,38 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: alertmanager
+    # Токен и chat_id берутся из deploy/env/.env (task up-monitoring подключает его через --env-file).
+    # Если они пустые, работаем с конфигом без Telegram: так контейнер не уходит в рестарты.
+    environment:
+      TELEGRAM_BOT_TOKEN: ${NOTIFICATION_TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${NOTIFICATION_TELEGRAM_CHAT_ID:-}
+    volumes:
+      - ./alertmanager:/etc/alertmanager-templates:ro
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        if [ -n "$$TELEGRAM_BOT_TOKEN" ] && [ -n "$$TELEGRAM_CHAT_ID" ]; then
+          sed -e "s|__TELEGRAM_BOT_TOKEN__|$$TELEGRAM_BOT_TOKEN|" -e "s|__TELEGRAM_CHAT_ID__|$$TELEGRAM_CHAT_ID|" \
+            /etc/alertmanager-templates/alertmanager.telegram.yml > /tmp/alertmanager.yml
+          echo "alertmanager: Telegram receiver enabled"
+        else
+          cp /etc/alertmanager-templates/alertmanager.null.yml /tmp/alertmanager.yml
+          echo "alertmanager: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID are empty, alerts will not be sent"
+        fi
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
     restart: unless-stopped
     networks:
       - microservices-net
