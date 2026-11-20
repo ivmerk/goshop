@@ -170,6 +170,25 @@ task up-monitoring   # Prometheus :9090, Alertmanager :9093, Grafana :3000 (admi
 если они пусты, Alertmanager работает без отправки (алерты видны на http://localhost:9093).
 Проверка: `task test-alert` создаёт 12 заказов и ждёт состояния `firing` в Prometheus и появления алерта в Alertmanager.
 
+## Tracing (OpenTelemetry + Jaeger)
+
+Order и Payment отправляют трейсы по OTLP/gRPC в Jaeger (`task up-tracing`, UI: http://localhost:16686).
+Трейс включается переменной `OTEL_EXPORTER_OTLP_ENDPOINT` (в compose это `http://jaeger:4317`); без неё сервис работает без трейсинга.
+
+Трейс оплаты заказа (`POST /api/v1/orders/{uuid}/pay`):
+
+```
+order   | HTTP POST
+  order   | auth.v1.AuthService/Whoami
+  order   | PayOrder
+    order   | payment.v1.PaymentService/PayOrder   (gRPC-клиент)
+      payment | payment.v1.PaymentService/PayOrder (gRPC-сервер)
+```
+
+Trace context передаётся заголовком `traceparent` (HTTP) и gRPC-метаданными; за это отвечают `otelhttp`/`otelgrpc`, инициализация — в `platform/pkg/tracing`.
+Логи, написанные внутри запроса, содержат `trace_id` и `span_id`: в Kibana ищите `log.trace_id: <id>`, где `<id>` взят из Jaeger (и наоборот).
+Через Kafka (Assembly, Notification) trace context пока не передаётся.
+
 ## Health checks and shutdown
 
 - HTTP: `GET /health` on the order service.
