@@ -573,8 +573,8 @@ tasks:
 
         echo "⏳ Ждём срабатывания алерта в Prometheus (до ~30 с)"
         for i in $(seq 1 15); do
-          STATE=$(curl -s localhost:9090/api/v1/alerts | grep -o '"alertname":"TooManyOrders"[^}]*}[^}]*"state":"[a-z]*"' | grep -o '"state":"[a-z]*"' | head -1)
-          if [[ "$STATE" == *firing* ]]; then
+          STATE=$(curl -s localhost:9090/api/v1/alerts | python3 -c "import sys,json; print(next((a['state'] for a in json.load(sys.stdin)['data']['alerts'] if a['labels']['alertname']=='TooManyOrders'), ''))")
+          if [ "$STATE" = "firing" ]; then
             echo "✅ Алерт TooManyOrders в состоянии firing"
             AM=$(curl -s localhost:9093/api/v2/alerts | grep -c TooManyOrders)
             if [ "$AM" -ge 1 ]; then echo "✅ Alertmanager получил алерт (http://localhost:9093)"; else echo "❌ Alertmanager алерт не получил"; exit 1; fi

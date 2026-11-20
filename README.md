@@ -148,6 +148,28 @@ task up-services                             # сервисы в контейн�
 Kibana: <http://localhost:5601>, data view «Service logs» (`svc-logs-*`) создаётся автоматически; фильтр по сервису: `service: order`.
 Запускать сервисы через `go run` одновременно с контейнерами нельзя: порты заняты (`task down-services`).
 
+## Metrics, dashboards and alerts
+
+Каждый сервис отдаёт Prometheus-метрики на отдельном порту `:9100` (`/metrics`, настраивается `METRICS_ADDR`). Порт отдельный, поэтому авторизация по сессии на него не распространяется.
+
+| Метрика | Сервис | Смысл |
+|---|---|---|
+| `orders_total` | order | созданные заказы |
+| `orders_revenue_total` | order | выручка (сумма оплаченных заказов) |
+| `assembly_duration_seconds` | assembly | длительность сборки корабля (гистограмма) |
+| `http_requests_total`, `grpc_server_requests_total` + `*_duration_seconds` | все | запросы и латентность |
+
+```bash
+task up-monitoring   # Prometheus :9090, Alertmanager :9093, Grafana :3000 (admin/admin)
+```
+
+В Grafana автоматически появляется дашборд «GoShop — обзор».
+
+**Алерт `TooManyOrders`:** срабатывает, если за 1 минуту создано больше 10 заказов (`sum(increase(orders_total[1m])) > 10`, правило в `deploy/compose/monitoring/rules/orders.yml`).
+Уведомление уходит в Telegram через Alertmanager. Токен бота и chat_id берутся из `NOTIFICATION_TELEGRAM_BOT_TOKEN` и `NOTIFICATION_TELEGRAM_CHAT_ID` в git-ignored `deploy/env/.env`;
+если они пусты, Alertmanager работает без отправки (алерты видны на http://localhost:9093).
+Проверка: `task test-alert` создаёт 12 заказов и ждёт состояния `firing` в Prometheus и появления алерта в Alertmanager.
+
 ## Health checks and shutdown
 
 - HTTP: `GET /health` on the order service.
