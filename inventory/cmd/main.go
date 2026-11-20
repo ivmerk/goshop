@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"log"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/ivmerk/goshop/inventory/internal/app"
 	"github.com/ivmerk/goshop/inventory/internal/config"
 	"github.com/ivmerk/goshop/platform/pkg/closer"
+	"github.com/ivmerk/goshop/platform/pkg/logger"
 )
 
 const configPath = "deploy/compose/inventory/.env"
@@ -16,16 +18,16 @@ const configPath = "deploy/compose/inventory/.env"
 const shutdownTimeout = 10 * time.Second
 
 func main() {
+	ctx := context.Background()
+
 	if err := config.Load(configPath); err != nil {
-		log.Printf("failed to load config: %v", err)
+		logger.Error(ctx, "failed to load config", zap.Error(err))
 		return
 	}
 
-	ctx := context.Background()
-
 	a, err := app.New(ctx)
 	if err != nil {
-		log.Printf("failed to create app: %v", err)
+		logger.Error(ctx, "failed to create app", zap.Error(err))
 		closeAll()
 		return
 	}
@@ -33,7 +35,7 @@ func main() {
 	closer.Configure(syscall.SIGINT, syscall.SIGTERM)
 
 	if err := a.Run(ctx); err != nil {
-		log.Printf("app stopped with error: %v", err)
+		logger.Error(ctx, "app stopped with error", zap.Error(err))
 	}
 
 	closeAll()
@@ -44,6 +46,6 @@ func closeAll() {
 	defer cancel()
 
 	if err := closer.CloseAll(ctx); err != nil {
-		log.Printf("failed to close resources: %v", err)
+		logger.Error(ctx, "failed to close resources", zap.Error(err))
 	}
 }

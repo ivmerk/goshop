@@ -85,6 +85,8 @@ linters: # Список активных и отключённых линтер�
       forbid: # Список запрещённых паттернов
         - pattern: '^fmt\.Print.*$'  # Запрет использования fmt.Print*, fmt.Println и т.д.
           msg: "Запрещено напрямую использовать fmt.Print* для логирования (вместо этого используйте структурированный логгер)"
+        - pattern: '^log\.(Print|Fatal|Panic).*$'  # Запрет стандартного log
+          msg: "Используйте platform/pkg/logger вместо стандартного log"
         - pattern: '^time\.Sleep$'  # Запрет использования time.Sleep
           msg: "Запрещено использовать time.Sleep в продакшен-коде (используй таймеры/контекст)"
         - pattern: '^http\.DefaultClient$'  # Запрет использования небезопасного http.DefaultClient

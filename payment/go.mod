@@ -16,7 +16,7 @@ require (
 replace github.com/ivmerk/goshop/shared => ../shared
 
 require (
-	github.com/caarlos0/env/v11 v11.4.1
+	github.com/caarlos0/env/v11 v11.4.2
 	github.com/google/uuid v1.6.0
 	github.com/ivmerk/goshop/platform v0.0.0
 	github.com/ivmerk/goshop/shared v0.0.0

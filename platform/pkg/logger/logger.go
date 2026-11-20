@@ -144,29 +144,39 @@ func WithContext(ctx context.Context) *logger {
 	}
 }
 
+// current возвращает глобальный логгер; если Init ещё не вызывался
+// (например, ошибка загрузки конфига в main), лениво создаёт JSON-логгер уровня info.
+func current() *logger {
+	if globalLogger == nil {
+		_ = Init("info", true) //nolint:gosec // Init всегда возвращает nil
+	}
+
+	return globalLogger
+}
+
 // Debug enrich-aware debug log
 func Debug(ctx context.Context, msg string, fields ...zap.Field) {
-	globalLogger.Debug(ctx, msg, fields...)
+	current().Debug(ctx, msg, fields...)
 }
 
 // Info enrich-aware info log
 func Info(ctx context.Context, msg string, fields ...zap.Field) {
-	globalLogger.Info(ctx, msg, fields...)
+	current().Info(ctx, msg, fields...)
 }
 
 // Warn enrich-aware warn log
 func Warn(ctx context.Context, msg string, fields ...zap.Field) {
-	globalLogger.Warn(ctx, msg, fields...)
+	current().Warn(ctx, msg, fields...)
 }
 
 // Error enrich-aware error log
 func Error(ctx context.Context, msg string, fields ...zap.Field) {
-	globalLogger.Error(ctx, msg, fields...)
+	current().Error(ctx, msg, fields...)
 }
 
 // Fatal enrich-aware fatal log
 func Fatal(ctx context.Context, msg string, fields ...zap.Field) {
-	globalLogger.Fatal(ctx, msg, fields...)
+	current().Fatal(ctx, msg, fields...)
 }
 
 // Instance methods для enrich loggers (logger)
