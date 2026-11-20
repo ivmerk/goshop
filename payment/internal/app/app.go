@@ -13,6 +13,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/closer"
 	"github.com/ivmerk/goshop/platform/pkg/grpc/health"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
+	"github.com/ivmerk/goshop/platform/pkg/prometheus"
 	paymentV1 "github.com/ivmerk/goshop/shared/pkg/proto/payment/v1"
 )
 
@@ -44,6 +45,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	for _, f := range []func(context.Context) error{
 		a.initLogger,
 		a.initCloser,
+		a.initMetrics,
 		a.initDI,
 		a.initListener,
 		a.initGRPCServer,
@@ -92,7 +94,7 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		return err
 	}
 
-	a.grpcServer = grpc.NewServer()
+	a.grpcServer = grpc.NewServer(grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor()))
 	closer.AddNamed("gRPC server", func(context.Context) error {
 		a.grpcServer.GracefulStop()
 		return nil
@@ -104,4 +106,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	paymentV1.RegisterPaymentServiceServer(a.grpcServer, api)
 
 	return nil
+}
+
+func (a *App) initMetrics(_ context.Context) error {
+	return prometheus.Serve()
 }

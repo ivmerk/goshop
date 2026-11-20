@@ -18,6 +18,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/closer"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
 	"github.com/ivmerk/goshop/platform/pkg/migrator"
+	"github.com/ivmerk/goshop/platform/pkg/prometheus"
 )
 
 type App struct {
@@ -79,6 +80,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	for _, f := range []func(context.Context) error{
 		a.initLogger,
 		a.initCloser,
+		a.initMetrics,
 		a.initDI,
 		a.initMigrations,
 		a.initHTTPServer,
@@ -129,6 +131,7 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
+	r.Use(prometheus.HTTPMiddleware)
 	r.Use(customMiddleware.RequestLogger)
 
 	r.Get("/health", health.Handler)
@@ -149,4 +152,8 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 		return a.httpServer.Shutdown(ctx)
 	})
 	return nil
+}
+
+func (a *App) initMetrics(_ context.Context) error {
+	return prometheus.Serve()
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/closer"
 	"github.com/ivmerk/goshop/platform/pkg/grpc/health"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
+	"github.com/ivmerk/goshop/platform/pkg/prometheus"
 	inventoryV1 "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1"
 )
 
@@ -44,6 +45,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	for _, f := range []func(context.Context) error{
 		a.initLogger,
 		a.initCloser,
+		a.initMetrics,
 		a.initDI,
 		a.initListener,
 		a.initGRPCServer,
@@ -98,7 +100,7 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	}
 
 	a.grpcServer = grpc.NewServer(
-		grpc.ChainUnaryInterceptor(authInterceptor.Unary()),
+		grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor(), authInterceptor.Unary()),
 	)
 	closer.AddNamed("gRPC server", func(context.Context) error {
 		a.grpcServer.GracefulStop()
@@ -110,4 +112,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 
 	inventoryV1.RegisterInventoryServiceServer(a.grpcServer, api)
 	return nil
+}
+
+func (a *App) initMetrics(_ context.Context) error {
+	return prometheus.Serve()
 }

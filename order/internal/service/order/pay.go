@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/ivmerk/goshop/order/internal/metrics"
 	"github.com/ivmerk/goshop/order/internal/model"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
 )
@@ -32,6 +33,8 @@ func (s *service) Pay(ctx context.Context, orderUUID string, method model.Paymen
 	}); err != nil {
 		return "", err
 	}
+
+	metrics.OrdersRevenueTotal.Add(order.Total)
 
 	if err := s.orderProducer.ProduceOrderPaid(ctx, model.OrderPaidEvent{
 		EventUUID:       uuid.NewString(),

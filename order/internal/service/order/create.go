@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ivmerk/goshop/order/internal/metrics"
 	"github.com/ivmerk/goshop/order/internal/model"
 )
 
@@ -34,5 +35,7 @@ func (s *service) Create(ctx context.Context, userUUID string, partUUIDs []strin
 	if _, err := s.orderRepository.Create(ctx, order); err != nil {
 		return nil, err
 	}
+	metrics.OrdersTotal.Inc()
+
 	return order, nil
 }

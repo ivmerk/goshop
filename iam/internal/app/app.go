@@ -15,6 +15,7 @@ import (
 	"github.com/ivmerk/goshop/platform/pkg/grpc/health"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
 	"github.com/ivmerk/goshop/platform/pkg/migrator"
+	"github.com/ivmerk/goshop/platform/pkg/prometheus"
 	authV1 "github.com/ivmerk/goshop/shared/pkg/proto/auth/v1"
 	userV1 "github.com/ivmerk/goshop/shared/pkg/proto/user/v1"
 )
@@ -47,6 +48,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	for _, f := range []func(context.Context) error{
 		a.initLogger,
 		a.initCloser,
+		a.initMetrics,
 		a.initDI,
 		a.initMigrations,
 		a.initListener,
@@ -110,7 +112,7 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		return err
 	}
 
-	a.grpcServer = grpc.NewServer()
+	a.grpcServer = grpc.NewServer(grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor()))
 	closer.AddNamed("gRPC server", func(context.Context) error {
 		a.grpcServer.GracefulStop()
 		return nil
@@ -123,4 +125,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	userV1.RegisterUserServiceServer(a.grpcServer, userAPI)
 
 	return nil
+}
+
+func (a *App) initMetrics(_ context.Context) error {
+	return prometheus.Serve()
 }

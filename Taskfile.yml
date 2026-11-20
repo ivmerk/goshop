@@ -439,6 +439,20 @@ tasks:
       - echo "[task] 🛑 Останавливаем ELK"
       - docker compose down --volumes
 
+  up-monitoring:
+    desc: Поднять Prometheus (:9090) и Grafana (:3000, admin/admin)
+    dir: deploy/compose/monitoring
+    cmds:
+      - echo "[task] 📈 Поднимаем Prometheus и Grafana"
+      - docker compose up --detach
+
+  down-monitoring:
+    desc: Остановить Prometheus и Grafana вместе с данными
+    dir: deploy/compose/monitoring
+    cmds:
+      - echo "[task] 🛑 Останавливаем мониторинг"
+      - docker compose down --volumes
+
   up-services:
     desc: Собрать и поднять все прикладные сервисы в контейнерах (нужна инфраструктура)
     dir: deploy/compose/services
@@ -462,10 +476,12 @@ tasks:
       - task up-order
       - task up-elk
       - task up-services
+      - task up-monitoring
 
   down-all:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
+      - task down-monitoring
       - task down-services
       - task down-elk
       - task down-core

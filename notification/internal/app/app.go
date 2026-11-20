@@ -9,6 +9,7 @@ import (
 	"github.com/ivmerk/goshop/notification/internal/config"
 	"github.com/ivmerk/goshop/platform/pkg/closer"
 	"github.com/ivmerk/goshop/platform/pkg/logger"
+	"github.com/ivmerk/goshop/platform/pkg/prometheus"
 )
 
 type App struct {
@@ -72,6 +73,7 @@ func (a *App) initDeps(ctx context.Context) error {
 	for _, f := range []func(context.Context) error{
 		a.initLogger,
 		a.initCloser,
+		a.initMetrics,
 		a.initDI,
 	} {
 		if err := f(ctx); err != nil {
@@ -95,4 +97,8 @@ func (a *App) initCloser(_ context.Context) error {
 func (a *App) initDI(_ context.Context) error {
 	a.di = NewDiContainer()
 	return nil
+}
+
+func (a *App) initMetrics(_ context.Context) error {
+	return prometheus.Serve()
 }

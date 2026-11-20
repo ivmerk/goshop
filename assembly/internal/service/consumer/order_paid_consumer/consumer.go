@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ivmerk/goshop/assembly/internal/converter/kafka/decoder"
+	"github.com/ivmerk/goshop/assembly/internal/metrics"
 	"github.com/ivmerk/goshop/assembly/internal/model"
 	def "github.com/ivmerk/goshop/assembly/internal/service"
 	"github.com/ivmerk/goshop/platform/pkg/kafka"
@@ -46,11 +47,13 @@ func (s *service) handle(ctx context.Context, msg consumer.Message) error {
 		return err
 	}
 	delay := time.Duration(1+n.Int64()) * time.Second
+	start := time.Now()
 	select {
 	case <-time.After(delay):
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	metrics.AssemblyDuration.Observe(time.Since(start).Seconds())
 
 	return s.producer.ProduceShipAssembled(ctx, model.ShipAssembledEvent{
 		EventUUID:    uuid.NewString(),

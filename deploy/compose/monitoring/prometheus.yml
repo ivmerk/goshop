@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: services
+    static_configs:
+      - targets: [ "iam:9100" ]
+        labels: { service: iam }
+      - targets: [ "inventory:9100" ]
+        labels: { service: inventory }
+      - targets: [ "payment:9100" ]
+        labels: { service: payment }
+      - targets: [ "order:9100" ]
+        labels: { service: order }
+      - targets: [ "assembly:9100" ]
+        labels: { service: assembly }
+      - targets: [ "notification:9100" ]
+        labels: { service: notification }
