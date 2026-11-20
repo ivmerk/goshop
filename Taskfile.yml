@@ -454,6 +454,20 @@ tasks:
       - echo "[task] 🛑 Останавливаем мониторинг"
       - docker compose down --volumes
 
+  up-tracing:
+    desc: Поднять Jaeger (UI на :16686, OTLP на :4317)
+    dir: deploy/compose/tracing
+    cmds:
+      - echo "[task] 🔎 Поднимаем Jaeger"
+      - docker compose up --detach
+
+  down-tracing:
+    desc: Остановить Jaeger
+    dir: deploy/compose/tracing
+    cmds:
+      - echo "[task] 🛑 Останавливаем Jaeger"
+      - docker compose down
+
   up-services:
     desc: Собрать и поднять все прикладные сервисы в контейнерах (нужна инфраструктура)
     dir: deploy/compose/services
@@ -476,6 +490,7 @@ tasks:
       - task up-inventory
       - task up-order
       - task up-elk
+      - task up-tracing
       - task up-services
       - task up-monitoring
 
@@ -483,6 +498,7 @@ tasks:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
       - task down-monitoring
+      - task down-tracing
       - task down-services
       - task down-elk
       - task down-core

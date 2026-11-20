@@ -1,0 +1,27 @@
+# Распределённый трейсинг: Jaeger all-in-one (приёмник OTLP + хранилище в памяти + UI).
+# UI: http://localhost:16686. Сервисы шлют спаны по OTLP/gRPC на jaeger:4317
+# (переменная OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317).
+# Хранилище в памяти: после перезапуска контейнера трейсы пропадают (для разработки достаточно).
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.65.0
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"   # OTLP gRPC (для сервисов, запущенных на хосте)
+      - "4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:14269/ >/dev/null 2>&1 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+networks:
+  microservices-net:
+    external: true
