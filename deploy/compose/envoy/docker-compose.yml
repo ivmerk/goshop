@@ -1,0 +1,27 @@
+# API-шлюз Envoy. Вход: http://localhost:8000, админка: http://localhost:8001.
+# Конфиг и дескриптор монтируются только для чтения из deploy/envoy.
+# Апстримы (order, inventory, iam) резолвятся по именам контейнеров в сети microservices-net,
+# поэтому прикладные сервисы должны быть запущены: task up-services.
+
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.34.1
+    container_name: envoy
+    command: ["-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+    volumes:
+      - ../../envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ../../envoy/inventory.pb:/etc/envoy/inventory.pb:ro
+    ports:
+      - "8000:8000"
+      - "127.0.0.1:8001:8001" # админка только с локальной машины
+    restart: unless-stopped
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://127.0.0.1:12201
+    networks:
+      - microservices-net
+
+networks:
+  microservices-net:
+    external: true

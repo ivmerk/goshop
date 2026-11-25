@@ -1,0 +1,98 @@
+# Единая точка входа (API-шлюз) goshop.
+#
+#   клиент ──► Envoy :8000 ─┬─ /order/*      → order_service     (HTTP → HTTP)
+#                           ├─ /inventory/*  → inventory_service (HTTP/JSON → gRPC)
+#                           └─ /healthz      → ответ самого Envoy
+#
+# Этот файл — основа: listener, маршруты и кластеры. Фильтры ext_authz (проверка сессии через IAM)
+# и grpc_json_transcoder (JSON ↔ gRPC для Inventory) добавляются в следующих коммитах.
+# Админка Envoy: http://localhost:8001 (stats, clusters, config_dump).
+
+admin:
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 8001 }
+
+static_resources:
+  listeners:
+    - name: ingress
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 8000 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        json_format:
+                          time: "%START_TIME%"
+                          method: "%REQ(:METHOD)%"
+                          path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                          status: "%RESPONSE_CODE%"
+                          flags: "%RESPONSE_FLAGS%"
+                          upstream: "%UPSTREAM_CLUSTER%"
+                          duration_ms: "%DURATION%"
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: goshop
+                      domains: ["*"]
+                      routes:
+                        # Технический путь: отвечает сам Envoy, до сервисов не доходит
+                        - match: { path: "/healthz" }
+                          direct_response:
+                            status: 200
+                            body: { inline_string: "ok" }
+
+                        # Order — обычный HTTP-сервис: срезаем префикс /order,
+                        # /order/api/v1/orders уходит в Order как /api/v1/orders
+                        - match: { prefix: "/order/" }
+                          route:
+                            cluster: order_service
+                            prefix_rewrite: "/"
+                            timeout: 15s
+
+                        # Inventory — gRPC-сервис. Префикс /inventory оставляем как есть:
+                        # он входит в пути из google.api.http (/inventory/v1/parts/...)
+                        - match: { prefix: "/inventory/" }
+                          route:
+                            cluster: inventory_service
+                            timeout: 15s
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+    - name: order_service
+      type: STRICT_DNS
+      connect_timeout: 2s
+      load_assignment:
+        cluster_name: order_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: order, port_value: 8080 }
+
+    - name: inventory_service
+      type: STRICT_DNS
+      connect_timeout: 2s
+      # gRPC работает поверх HTTP/2, без этого Envoy будет говорить с Inventory по HTTP/1.1
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
+      load_assignment:
+        cluster_name: inventory_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: inventory, port_value: 50051 }

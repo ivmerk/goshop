@@ -479,6 +479,20 @@ tasks:
       - echo "[task] 🛑 Останавливаем Jaeger"
       - docker compose down
 
+  up-envoy:
+    desc: Поднять Envoy (шлюз на :8000, админка на :8001; нужны запущенные сервисы)
+    dir: deploy/compose/envoy
+    cmds:
+      - echo "[task] 🚪 Поднимаем Envoy"
+      - docker compose up --detach --force-recreate
+
+  down-envoy:
+    desc: Остановить Envoy
+    dir: deploy/compose/envoy
+    cmds:
+      - echo "[task] 🛑 Останавливаем Envoy"
+      - docker compose down
+
   up-services:
     desc: Собрать и поднять все прикладные сервисы в контейнерах (нужна инфраструктура)
     dir: deploy/compose/services
@@ -503,12 +517,14 @@ tasks:
       - task up-elk
       - task up-tracing
       - task up-services
+      - task up-envoy
       - task up-monitoring
 
   down-all:
     desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
     cmds:
       - task down-monitoring
+      - task down-envoy
       - task down-tracing
       - task down-services
       - task down-elk
