@@ -6,8 +6,9 @@
 #   start  (по умолчанию) — сервисы работают в контейнерах (task up-services),
 #          в tmux три окна:
 #            code     — nvim, lazygit и свободный shell;
-#            services — логи iam, inventory, payment, order, assembly, notification
-#                       (docker logs -f, JSON-строки сворачиваются в «время уровень сообщение»);
+#            services — логи iam, inventory, payment, order, assembly, notification и envoy
+#                       (docker logs -f, JSON-строки сворачиваются в «время уровень сообщение»,
+#                       для envoy — в «время метод путь статус → апстрим»);
 #            ops      — shell и шпаргалка по адресам UI (Kibana, Grafana, Jaeger, ...).
 #   local  — старый режим: сервисы запускаются через `go run` прямо в панелях одного окна
 #          (контейнеры сервисов при этом должны быть остановлены: task down-services).
@@ -16,7 +17,7 @@ set -euo pipefail
 
 SESSION="${TMUX_SESSION:-goshop}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SERVICES=(iam inventory payment order assembly notification)
+SERVICES=(iam inventory payment order assembly notification envoy)
 
 attach() {
   # NO_ATTACH=1 нужен для проверки скрипта без интерактивного терминала
@@ -56,13 +57,20 @@ name_pane() {
 }
 
 # Команда просмотра логов контейнера: JSON zap → «ЧЧ:ММ:СС УРОВЕНЬ сообщение»,
-# не-JSON строки (goose, лог Telegram-библиотеки) выводятся как есть.
+# не-JSON строки (goose, лог Telegram-библиотеки, служебные строки Envoy) выводятся как есть.
 # `. as $l`: внутри catch точка — это текст ошибки, а не исходная строка.
+# У envoy JSON — это access log (поля time, method, path, status, upstream), а не zap.
 logs_cmd() {
-  local name=$1
+  local name=$1 filter
   if command -v jq >/dev/null 2>&1; then
-    # shellcheck disable=SC2016 # фильтр jq — в одинарных кавычках намеренно
-    printf '%s' "docker logs -f --tail 30 $name 2>&1 | jq --unbuffered -Rr '. as \$l | try (fromjson | \"\\(.timestamp[11:19]) \\(.level) \\(.message)\") catch \$l'"
+    if [ "$name" = envoy ]; then
+      # shellcheck disable=SC2016 # фильтр jq — в одинарных кавычках намеренно
+      filter='. as $l | try (fromjson | "\(.time[11:19]) \(.method) \(.path) \(.status) → \(.upstream // "-")") catch $l'
+    else
+      # shellcheck disable=SC2016
+      filter='. as $l | try (fromjson | "\(.timestamp[11:19]) \(.level) \(.message)") catch $l'
+    fi
+    printf '%s' "docker logs -f --tail 30 $name 2>&1 | jq --unbuffered -Rr '$filter'"
   else
     printf '%s' "docker logs -f --tail 30 $name 2>&1"
   fi
@@ -82,7 +90,7 @@ start_docker() {
   tmux send-keys -t "$nvim" "nvim ." C-m
   tmux send-keys -t "$lazygit" "lazygit" C-m
 
-  # Окно services: по панели на каждый контейнер, сетка 2x3
+  # Окно services: по панели на каждый контейнер, плитки (tiled)
   tmux new-window -t "$SESSION" -n services -c "$ROOT"
   local first
   first=$(tmux display-message -p -t "$SESSION:services.0" '#{pane_id}')
@@ -105,6 +113,7 @@ start_docker() {
 Сервисы:     task up-services | down-services   (пересборка: task up-services)
 Тесты:       task test-api | test-alert | test-api-auth-rejection
 
+Envoy        http://localhost:8000          Envoy adm http://localhost:8001
 Order API    http://localhost:8080          Kibana    http://localhost:5601
 Grafana      http://localhost:3000 (admin)  Jaeger    http://localhost:16686
 Prometheus   http://localhost:9090          Alertmgr  http://localhost:9093
