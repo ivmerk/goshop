@@ -4,8 +4,14 @@
 #                           ├─ /inventory/*  → inventory_service (HTTP/JSON → gRPC, см. ниже)
 #                           └─ /healthz      → ответ самого Envoy
 #
-# Фильтры: grpc_json_transcoder (JSON ↔ gRPC для Inventory). Фильтр ext_authz
-# (проверка сессии через IAM) добавляется в следующем коммите.
+# Фильтры (в порядке выполнения):
+#   1. ext_authz            — для каждого запроса вызывает IAM (Authorization.Check) и пускает
+#                             дальше только при действующей сессии (заголовок X-Session-Uuid);
+#   2. grpc_json_transcoder — JSON ↔ gRPC для Inventory;
+#   3. router.
+# Публичные пути (сейчас только /healthz) отключают ext_authz в своём маршруте.
+# Важно: ext_authz пропускает запрос, у которого нет маршрута, поэтому у каждого
+# защищённого префикса маршрут должен быть и для исходного пути.
 # Админка Envoy: http://localhost:8001 (stats, clusters, config_dump).
 
 admin:
@@ -48,6 +54,11 @@ static_resources:
                           direct_response:
                             status: 200
                             body: { inline_string: "ok" }
+                          # Публичный путь: проверка сессии отключена
+                          typed_per_filter_config:
+                            envoy.filters.http.ext_authz:
+                              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+                              disabled: true
 
                         # Order — обычный HTTP-сервис: срезаем префикс /order,
                         # /order/api/v1/orders уходит в Order как /api/v1/orders
@@ -56,6 +67,15 @@ static_resources:
                             cluster: order_service
                             prefix_rewrite: "/"
                             timeout: 15s
+
+                        # Исходный REST-путь /inventory/... должен иметь маршрут, иначе ext_authz
+                        # (он выполняется до транскодера) молча пропустит запрос без проверки.
+                        # Сюда попадают только пути, которые транскодер не распознал:
+                        # распознанные он переписывает, и дальше работает маршрут ниже.
+                        - match: { prefix: "/inventory/" }
+                          direct_response:
+                            status: 404
+                            body: { inline_string: '{"code":404,"message":"not found"}' }
 
                         # Inventory — gRPC-сервис. Клиент ходит на /inventory/v1/..., но транскодер
                         # переписывает запрос в gRPC-вызов (POST /inventory.v1.InventoryService/<Метод>)
@@ -72,6 +92,20 @@ static_resources:
                             - header: { key: session-uuid, value: "%REQ(X-SESSION-UUID)%" }
                               append_action: OVERWRITE_IF_EXISTS_OR_ADD
                 http_filters:
+                  # Аутентификация на входе. Запрос видит сессию ещё до транскодера и роутера,
+                  # поэтому путь здесь исходный (/inventory/v1/..., /order/...).
+                  - name: envoy.filters.http.ext_authz
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                      transport_api_version: V3
+                      grpc_service:
+                        envoy_grpc: { cluster_name: iam_service }
+                        timeout: 2s
+                      # Fail closed: если IAM недоступен, запрос отклоняется, а не пропускается
+                      failure_mode_allow: false
+                      # HTTP-код, когда сам вызов IAM упал (отказ в доступе, 401, приходит
+                      # в теле ответа Check и отдаётся клиенту как есть)
+                      status_on_error: { code: ServiceUnavailable }
                   # JSON ↔ gRPC. Работает только для методов из дескриптора
                   # (inventory.v1.InventoryService), остальные запросы (/order, /healthz)
                   # проходят мимо без изменений.
@@ -121,3 +155,20 @@ static_resources:
               - endpoint:
                   address:
                     socket_address: { address: inventory, port_value: 50051 }
+
+    # IAM: gRPC-сервис, в том числе Authorization.Check для ext_authz
+    - name: iam_service
+      type: STRICT_DNS
+      connect_timeout: 2s
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
+      load_assignment:
+        cluster_name: iam_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: iam, port_value: 50053 }
