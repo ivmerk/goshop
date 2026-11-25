@@ -56,12 +56,13 @@ name_pane() {
 }
 
 # Команда просмотра логов контейнера: JSON zap → «ЧЧ:ММ:СС УРОВЕНЬ сообщение»,
-# не-JSON строки (например, goose) выводятся как есть.
+# не-JSON строки (goose, лог Telegram-библиотеки) выводятся как есть.
+# `. as $l`: внутри catch точка — это текст ошибки, а не исходная строка.
 logs_cmd() {
   local name=$1
   if command -v jq >/dev/null 2>&1; then
     # shellcheck disable=SC2016 # фильтр jq — в одинарных кавычках намеренно
-    printf '%s' "docker logs -f --tail 30 $name 2>&1 | jq --unbuffered -Rr 'try (fromjson | \"\\(.timestamp[11:19]) \\(.level) \\(.message)\") catch .'"
+    printf '%s' "docker logs -f --tail 30 $name 2>&1 | jq --unbuffered -Rr '. as \$l | try (fromjson | \"\\(.timestamp[11:19]) \\(.level) \\(.message)\") catch \$l'"
   else
     printf '%s' "docker logs -f --tail 30 $name 2>&1"
   fi
