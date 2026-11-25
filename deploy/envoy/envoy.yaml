@@ -1,11 +1,11 @@
 # Единая точка входа (API-шлюз) goshop.
 #
 #   клиент ──► Envoy :8000 ─┬─ /order/*      → order_service     (HTTP → HTTP)
-#                           ├─ /inventory/*  → inventory_service (HTTP/JSON → gRPC)
+#                           ├─ /inventory/*  → inventory_service (HTTP/JSON → gRPC, см. ниже)
 #                           └─ /healthz      → ответ самого Envoy
 #
-# Этот файл — основа: listener, маршруты и кластеры. Фильтры ext_authz (проверка сессии через IAM)
-# и grpc_json_transcoder (JSON ↔ gRPC для Inventory) добавляются в следующих коммитах.
+# Фильтры: grpc_json_transcoder (JSON ↔ gRPC для Inventory). Фильтр ext_authz
+# (проверка сессии через IAM) добавляется в следующем коммите.
 # Админка Envoy: http://localhost:8001 (stats, clusters, config_dump).
 
 admin:
@@ -57,13 +57,38 @@ static_resources:
                             prefix_rewrite: "/"
                             timeout: 15s
 
-                        # Inventory — gRPC-сервис. Префикс /inventory оставляем как есть:
-                        # он входит в пути из google.api.http (/inventory/v1/parts/...)
-                        - match: { prefix: "/inventory/" }
+                        # Inventory — gRPC-сервис. Клиент ходит на /inventory/v1/..., но транскодер
+                        # переписывает запрос в gRPC-вызов (POST /inventory.v1.InventoryService/<Метод>)
+                        # и Envoy выбирает маршрут заново уже по этому пути, поэтому матчим его.
+                        # Неизвестные REST-пути под /inventory транскодер не пропустит: будет 404.
+                        - match: { prefix: "/inventory.v1.InventoryService/" }
                           route:
                             cluster: inventory_service
                             timeout: 15s
+                          # Inventory читает сессию из gRPC-метаданных с ключом session-uuid,
+                          # а клиент присылает HTTP-заголовок X-Session-Uuid. Копируем значение
+                          # (OVERWRITE: подделать session-uuid отдельным заголовком нельзя).
+                          request_headers_to_add:
+                            - header: { key: session-uuid, value: "%REQ(X-SESSION-UUID)%" }
+                              append_action: OVERWRITE_IF_EXISTS_OR_ADD
                 http_filters:
+                  # JSON ↔ gRPC. Работает только для методов из дескриптора
+                  # (inventory.v1.InventoryService), остальные запросы (/order, /healthz)
+                  # проходят мимо без изменений.
+                  - name: envoy.filters.http.grpc_json_transcoder
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
+                      proto_descriptor: /etc/envoy/inventory.pb
+                      services: ["inventory.v1.InventoryService"]
+                      # Явные маршруты берём из google.api.http, угадывать по имени метода не нужно
+                      auto_mapping: false
+                      print_options:
+                        add_whitespace: false
+                        always_print_primitive_fields: true
+                        always_print_enums_as_ints: false
+                        preserve_proto_field_names: false
+                      # gRPC-ошибка → HTTP-код (Unauthenticated → 401, NotFound → 404 ...) и JSON-тело
+                      convert_grpc_status: true
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
