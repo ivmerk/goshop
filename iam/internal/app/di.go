@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 
+	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	authAPI "github.com/ivmerk/goshop/iam/internal/api/auth/v1"
+	authzAPI "github.com/ivmerk/goshop/iam/internal/api/authz/v1"
 	userAPI "github.com/ivmerk/goshop/iam/internal/api/user/v1"
 	"github.com/ivmerk/goshop/iam/internal/config"
 	"github.com/ivmerk/goshop/iam/internal/repository"
@@ -24,8 +26,9 @@ import (
 )
 
 type diContainer struct {
-	authV1API authV1.AuthServiceServer
-	userV1API userV1.UserServiceServer
+	authV1API  authV1.AuthServiceServer
+	authzV1API authv3.AuthorizationServer
+	userV1API  userV1.UserServiceServer
 
 	authService service.AuthService
 	userService service.UserService
@@ -49,6 +52,17 @@ func (d *diContainer) AuthV1API(ctx context.Context) (authV1.AuthServiceServer, 
 		d.authV1API = authAPI.NewAPI(svc)
 	}
 	return d.authV1API, nil
+}
+
+func (d *diContainer) AuthzV1API(ctx context.Context) (authv3.AuthorizationServer, error) {
+	if d.authzV1API == nil {
+		svc, err := d.AuthService(ctx)
+		if err != nil {
+			return nil, err
+		}
+		d.authzV1API = authzAPI.NewAPI(svc)
+	}
+	return d.authzV1API, nil
 }
 
 func (d *diContainer) UserV1API(ctx context.Context) (userV1.UserServiceServer, error) {

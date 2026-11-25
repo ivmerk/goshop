@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 
+	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -111,6 +112,10 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	authzAPI, err := a.di.AuthzV1API(ctx)
+	if err != nil {
+		return err
+	}
 
 	a.grpcServer = grpc.NewServer(grpc.ChainUnaryInterceptor(prometheus.UnaryServerInterceptor()))
 	closer.AddNamed("gRPC server", func(context.Context) error {
@@ -123,6 +128,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 
 	authV1.RegisterAuthServiceServer(a.grpcServer, authAPI)
 	userV1.RegisterUserServiceServer(a.grpcServer, userAPI)
+	// Контракт Envoy ext_authz: Envoy проверяет сессию запроса через Authorization.Check
+	authv3.RegisterAuthorizationServer(a.grpcServer, authzAPI)
 
 	return nil
 }
