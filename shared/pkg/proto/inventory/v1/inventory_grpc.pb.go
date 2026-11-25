@@ -27,7 +27,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InventoryServiceClient interface {
+	// HTTP-правила нужны Envoy grpc_json_transcoder: он по ним превращает REST/JSON в gRPC.
 	GetPart(ctx context.Context, in *GetPartRequest, opts ...grpc.CallOption) (*GetPartResponse, error)
+	// Фильтр сложный (повторяющиеся поля), поэтому передаём его в теле запроса.
 	ListParts(ctx context.Context, in *ListPartsRequest, opts ...grpc.CallOption) (*ListPartsResponse, error)
 }
 
@@ -63,7 +65,9 @@ func (c *inventoryServiceClient) ListParts(ctx context.Context, in *ListPartsReq
 // All implementations must embed UnimplementedInventoryServiceServer
 // for forward compatibility.
 type InventoryServiceServer interface {
+	// HTTP-правила нужны Envoy grpc_json_transcoder: он по ним превращает REST/JSON в gRPC.
 	GetPart(context.Context, *GetPartRequest) (*GetPartResponse, error)
+	// Фильтр сложный (повторяющиеся поля), поэтому передаём его в теле запроса.
 	ListParts(context.Context, *ListPartsRequest) (*ListPartsResponse, error)
 	mustEmbedUnimplementedInventoryServiceServer()
 }

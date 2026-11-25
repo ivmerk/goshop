@@ -2,13 +2,24 @@ syntax = "proto3";
 
 package inventory.v1;
 
+import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/ivmerk/goshop/shared/pkg/proto/inventory/v1;inventory_v1";
 
 service InventoryService {
-  rpc GetPart(GetPartRequest) returns (GetPartResponse);
-  rpc ListParts(ListPartsRequest) returns (ListPartsResponse);
+  // HTTP-правила нужны Envoy grpc_json_transcoder: он по ним превращает REST/JSON в gRPC.
+  rpc GetPart(GetPartRequest) returns (GetPartResponse) {
+    option (google.api.http) = {get: "/inventory/v1/parts/{uuid}"};
+  }
+
+  // Фильтр сложный (повторяющиеся поля), поэтому передаём его в теле запроса.
+  rpc ListParts(ListPartsRequest) returns (ListPartsResponse) {
+    option (google.api.http) = {
+      post: "/inventory/v1/parts/search"
+      body: "*"
+    };
+  }
 }
 
 message GetPartRequest {

@@ -175,6 +175,16 @@ tasks:
     cmds:
       - '{{.BUF}} generate'
 
+  proto:descriptor:
+    deps: [ install-buf ]
+    desc: Собирает дескриптор inventory.pb для Envoy grpc_json_transcoder
+    dir: shared/proto
+    cmds:
+      # Импортируемые google/api/*.proto попадают в набор автоматически,
+      # без них Envoy не прочитает HTTP-правила (google.api.http)
+      - '{{.BUF}} build --path inventory/v1/inventory.proto --exclude-source-info -o ../../deploy/envoy/inventory.pb'
+      - echo "✅ deploy/envoy/inventory.pb обновлён"
+
   proto:lint:
     deps: [ install-buf, proto:install-plugins ]
     desc: Проверка .proto-файлов на соответствие стилю
@@ -236,6 +246,7 @@ tasks:
     desc: "Генерация всех proto и OpenAPI деклараций"
     cmds:
       - task: proto:gen
+      - task: proto:descriptor
       - task: ogen:gen
 
   deps:update:
