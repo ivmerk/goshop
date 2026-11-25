@@ -38,6 +38,7 @@ The session UUID travels with every request and each service validates it throug
 
 | Hop                          | Where the session lives                 | Check                                      |
 | ---------------------------- | --------------------------------------- | ------------------------------------------ |
+| client → Envoy (REST)        | header `X-Session-Uuid`                 | `ext_authz` → iam `Authorization.Check`, 401 on failure; `/healthz` is open (see [API gateway](#api-gateway-envoy)) |
 | client → order (REST)        | header `X-Session-Uuid`                 | HTTP middleware, 401 `MISSING_SESSION` / `INVALID_SESSION`; `/health` is open |
 | order → inventory (gRPC)     | metadata `session-uuid`                 | order forwards it with `ForwardSessionUUIDToGRPC` |
 | client → inventory (gRPC)    | metadata `session-uuid`                 | unary interceptor, `Unauthenticated` on failure |
@@ -189,6 +190,47 @@ Trace context передаётся заголовком `traceparent` (HTTP) и 
 Логи, написанные внутри запроса, содержат `trace_id` и `span_id`: в Kibana ищите `log.trace_id: <id>`, где `<id>` взят из Jaeger (и наоборот).
 Через Kafka (Assembly, Notification) trace context пока не передаётся.
 
+## API gateway (Envoy)
+
+Единая точка входа: Envoy на http://localhost:8000 (админка: http://localhost:8001, только с локальной машины).
+Запуск: `task up-envoy` (нужны запущенные сервисы: `task up-services`), конфиг: `deploy/envoy/envoy.yaml`.
+
+```
+клиент ──► Envoy :8000 ──ext_authz (gRPC)──► iam  Authorization.Check
+              ├─ /order/*      ──HTTP──► order     (префикс /order срезается)
+              ├─ /inventory/*  ──gRPC──► inventory (JSON ↔ gRPC, grpc_json_transcoder)
+              └─ /healthz      → отвечает сам Envoy, без аутентификации
+```
+
+| Запрос через шлюз                          | Куда уходит                                          |
+| ------------------------------------------ | ---------------------------------------------------- |
+| `GET  /order/api/v1/orders/{uuid}`         | `order` `GET /api/v1/orders/{uuid}`                  |
+| `POST /order/api/v1/orders`                | `order` `POST /api/v1/orders`                        |
+| `GET  /inventory/v1/parts/{uuid}`          | `inventory.v1.InventoryService/GetPart`              |
+| `POST /inventory/v1/parts/search`          | `inventory.v1.InventoryService/ListParts` (фильтр в JSON-теле) |
+
+```bash
+curl -H "X-Session-Uuid: <session uuid>" localhost:8000/inventory/v1/parts/<part uuid>
+curl -X POST -H "X-Session-Uuid: <session uuid>" localhost:8000/inventory/v1/parts/search -d '{"filter":{"categories":["ENGINE"]}}'
+```
+
+**Аутентификация.** Фильтр `ext_authz` перед каждым запросом вызывает IAM `envoy.service.auth.v3.Authorization/Check` (`iam/internal/api/authz/v1`). IAM проверяет сессию из `X-Session-Uuid` через `Whoami`:
+- сессия верна → запрос идёт дальше, к нему добавляются заголовки `x-user-uuid` и `x-user-login` (перезаписываются, подделать их клиент не может);
+- сессии нет или она недействительна → Envoy сразу отвечает 401 (JSON), до сервиса запрос не доходит;
+- IAM недоступен → 503 (fail closed: без проверки не пускаем).
+
+Order и Inventory по-прежнему проверяют сессию сами (defense in depth), поэтому шлюз можно обойти только прямым доступом к их портам.
+Публичный путь один, `/healthz`: проверка отключена в его маршруте (`typed_per_filter_config`). Логин и регистрация остаются gRPC-вызовами в IAM (`localhost:50053`): HTTP-маршрута для них в шлюзе нет.
+
+**Транскодер.** HTTP-правила заданы в `shared/proto/inventory/v1/inventory.proto` (`google.api.http`). Из них собирается дескриптор `deploy/envoy/inventory.pb` (`task proto:descriptor`, выполняется и в `task gen`): после изменения proto его нужно пересобрать и закоммитить, иначе Envoy будет работать со старыми маршрутами. Поле `int64` в JSON приходит строкой (`"stockQuantity":"5"`), так кодирует protobuf-JSON.
+
+Нюансы конфигурации, которые легко сломать:
+- Транскодер переписывает запрос в `POST /inventory.v1.InventoryService/<Метод>`, а маршрут выбирается заново уже по этому пути, поэтому кластер Inventory матчится по `/inventory.v1.InventoryService/`.
+- `ext_authz` выполняется до транскодера и **пропускает запросы без маршрута**. Поэтому у исходного пути `/inventory/` есть отдельный маршрут (ответ 404 для путей, не распознанных транскодером). Не удаляйте его: иначе неизвестные пути Inventory пройдут без проверки сессии.
+- Inventory читает сессию из gRPC-метаданных `session-uuid`, поэтому Envoy копирует в них значение `X-Session-Uuid`.
+
+Проверка: `task test-envoy` (11 проверок: публичный путь, отказы 401, транскодирование Inventory, заказ через `/order`). Логи Envoy (JSON access log) попадают в ELK как у остальных сервисов, в tmux для них есть отдельная панель.
+
 ## Health checks and shutdown
 
 - HTTP: `GET /health` on the order service.
@@ -204,7 +246,7 @@ Trace context передаётся заголовком `traceparent` (HTTP) и 
 | `task test-integration` | Run integration tests (needs Docker)         |
 | `task test-coverage`    | Coverage for service and repository packages |
 | `task mockery:gen`      | Regenerate mocks                             |
-| `task gen`              | Regenerate protobuf and OpenAPI code         |
+| `task gen`              | Regenerate protobuf, the Envoy descriptor and OpenAPI code |
 
 ## Testing
 
